@@ -1,0 +1,275 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+
+import '../services/app_database.dart';
+import '../services/managed_image_service.dart';
+import '../widgets/page_header.dart';
+import '../widgets/reveal_motion.dart';
+import '../widgets/section_card.dart';
+
+/// 设置页，展示数据概况与本地数据管理入口。
+class SettingsPage extends StatefulWidget {
+  const SettingsPage({
+    super.key,
+    required this.refreshSeed,
+    required this.onExport,
+    required this.onImport,
+    required this.onClearData,
+    required this.onCleanupUnusedImages,
+  });
+
+  final int refreshSeed;
+  final Future<void> Function() onExport;
+  final Future<void> Function() onImport;
+  final Future<void> Function() onClearData;
+  final Future<int> Function() onCleanupUnusedImages;
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  final AppDatabase _database = AppDatabase.instance;
+  final ManagedImageService _imageService = ManagedImageService.instance;
+  late Future<_SettingsViewData> _viewDataFuture;
+  bool _isCleaningImages = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewDataFuture = _loadViewData();
+  }
+
+  @override
+  void didUpdateWidget(covariant SettingsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshSeed != widget.refreshSeed) {
+      setState(() {
+        _viewDataFuture = _loadViewData();
+      });
+    }
+  }
+
+  Future<_SettingsViewData> _loadViewData() async {
+    final summary = await _database.getSummary();
+    final managedImageCount = await _resolveManagedImageCount();
+    if (kIsWeb) {
+      return _SettingsViewData(
+        summary: summary,
+        storagePath: 'browser local storage',
+        managedImageCount: managedImageCount,
+      );
+    }
+    final documents = await getApplicationDocumentsDirectory();
+    return _SettingsViewData(
+      summary: summary,
+      storagePath: documents.path,
+      managedImageCount: managedImageCount,
+    );
+  }
+
+  Future<int> _resolveManagedImageCount() async {
+    if (kIsWeb) {
+      return 0;
+    }
+    final directory = await _imageService.imageDirectory;
+    return directory.listSync().whereType<File>().length;
+  }
+
+  Future<void> _cleanupUnusedImages() async {
+    setState(() {
+      _isCleaningImages = true;
+    });
+    try {
+      final deletedCount = await widget.onCleanupUnusedImages();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _viewDataFuture = _loadViewData();
+      });
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('已清理 $deletedCount 张未引用图片')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCleaningImages = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: FutureBuilder<_SettingsViewData>(
+        future: _viewDataFuture,
+        builder:
+            (BuildContext context, AsyncSnapshot<_SettingsViewData> snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final data = snapshot.data!;
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                children: <Widget>[
+                  const RevealMotion(
+                    child: PageHeader(
+                      eyebrow: 'LOCAL CONTROL',
+                      title: '所有数据都只留在本地，所以管理动作必须清晰可追踪。',
+                      description: '这里负责查看存量、导出备份、恢复本地数据以及执行清空。',
+                    ),
+                  ),
+                  RevealMotion(
+                    delay: const Duration(milliseconds: 80),
+                    child: SectionCard(
+                      addTopDivider: false,
+                      title: '数据总览',
+                      subtitle: '先看规模，再决定是否导出或清理。',
+                      child: _SummaryStrip(data: data),
+                    ),
+                  ),
+                  RevealMotion(
+                    delay: const Duration(milliseconds: 150),
+                    child: SectionCard(
+                      title: '导出与导入',
+                      subtitle: '导出 JSON 与图片 ZIP，导入时自动恢复本地图片路径。',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          FilledButton.icon(
+                            onPressed: widget.onExport,
+                            icon: const Icon(Icons.archive_outlined),
+                            label: const Text('导出所有数据为 ZIP'),
+                          ),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: widget.onImport,
+                            icon: const Icon(Icons.unarchive_outlined),
+                            label: const Text('从 ZIP 导入数据'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  RevealMotion(
+                    delay: const Duration(milliseconds: 220),
+                    child: SectionCard(
+                      title: '本地数据管理',
+                      subtitle: kIsWeb
+                          ? 'Web 端数据保存在浏览器本地存储，清空站点数据后内容也会一起移除。'
+                          : '应用文档目录用于保存 Isar 数据库文件与已托管图片。',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7F3EC),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: SelectableText(data.storagePath),
+                          ),
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: kIsWeb || _isCleaningImages
+                                ? null
+                                : _cleanupUnusedImages,
+                            icon: _isCleaningImages
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.cleaning_services_outlined),
+                            label: const Text('清理未引用图片'),
+                          ),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: widget.onClearData,
+                            icon: const Icon(Icons.delete_outline),
+                            label: const Text('清空本地数据'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+      ),
+    );
+  }
+}
+
+class _SummaryStrip extends StatelessWidget {
+  const _SummaryStrip({required this.data});
+
+  final _SettingsViewData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 32,
+      runSpacing: 20,
+      children: <Widget>[
+        _SummaryMetric(
+          label: '个人档案',
+          value: data.summary.hasProfile ? '已填写' : '未填写',
+        ),
+        _SummaryMetric(label: '分类总数', value: '${data.summary.categoryCount}'),
+        _SummaryMetric(label: '收藏总数', value: '${data.summary.favoriteCount}'),
+        _SummaryMetric(label: '图片数量', value: '${data.summary.imageCount}'),
+        _SummaryMetric(label: '托管图片', value: '${data.managedImageCount}'),
+        _SummaryMetric(label: '想法总数', value: '${data.summary.thoughtCount}'),
+      ],
+    );
+  }
+}
+
+class _SummaryMetric extends StatelessWidget {
+  const _SummaryMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 140,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF16302B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsViewData {
+  const _SettingsViewData({
+    required this.summary,
+    required this.storagePath,
+    required this.managedImageCount,
+  });
+
+  final AppDataSummary summary;
+  final String storagePath;
+  final int managedImageCount;
+}
