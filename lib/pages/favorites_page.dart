@@ -136,7 +136,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
           : RefreshIndicator(
               onRefresh: _loadFavorites,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                 children: <Widget>[
                   const RevealMotion(
                     child: PageHeader(
@@ -295,14 +295,14 @@ class _FavoritesPageState extends State<FavoritesPage> {
                           )
                         : Padding(
                             key: const ValueKey<String>('favorites-grid'),
-                            padding: const EdgeInsets.only(top: 18),
+                            padding: const EdgeInsets.only(top: 14),
                             child: MasonryGridView.count(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
                               itemCount: filteredItems.length,
                               crossAxisCount: 2,
-                              mainAxisSpacing: 14,
-                              crossAxisSpacing: 14,
+                              mainAxisSpacing: 10,
+                              crossAxisSpacing: 10,
                               itemBuilder: (BuildContext context, int index) {
                                 final item = filteredItems[index];
                                 return RevealMotion(
@@ -591,6 +591,8 @@ class _FavoriteCard extends StatelessWidget {
 }
 
 class _FavoriteCover extends StatelessWidget {
+  static const double _listImageRadius = 6;
+
   const _FavoriteCover({required this.item});
 
   final FavoriteItem item;
@@ -608,7 +610,7 @@ class _FavoriteCover extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       constraints: BoxConstraints(minHeight: previewHeight),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(_listImageRadius),
         gradient: LinearGradient(
           colors: <Color>[
             colorScheme.secondaryContainer,
@@ -712,7 +714,7 @@ class _AdaptiveFavoriteImageState extends State<_AdaptiveFavoriteImage> {
           path: widget.path,
           width: width,
           height: height,
-          borderRadius: 20,
+          borderRadius: _FavoriteCover._listImageRadius,
           fit: BoxFit.cover,
           placeholderIcon: Icons.collections_outlined,
           previewEnabled: false,

@@ -117,7 +117,7 @@ class _ThoughtsPageState extends State<ThoughtsPage> {
           : RefreshIndicator(
               onRefresh: _loadThoughts,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                 children: <Widget>[
                   const RevealMotion(
                     child: PageHeader(
@@ -634,6 +634,8 @@ class _ThoughtRow extends StatelessWidget {
 }
 
 class _ThoughtPreview extends StatelessWidget {
+  static const double _listImageRadius = 6;
+
   const _ThoughtPreview({required this.imagePath});
 
   final String imagePath;
@@ -644,7 +646,7 @@ class _ThoughtPreview extends StatelessWidget {
       path: imagePath,
       width: 104,
       height: 116,
-      borderRadius: 18,
+      borderRadius: _listImageRadius,
       placeholderIcon: Icons.route_outlined,
       placeholderColor: const Color(0xFFE4F2EE),
       iconColor: const Color(0xFF115E59),

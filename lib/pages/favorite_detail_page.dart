@@ -125,64 +125,77 @@ class _FavoriteDetailPageState extends State<FavoriteDetailPage> {
       body: _isLoading || item == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+              padding: const EdgeInsets.fromLTRB(0, 12, 0, 28),
               children: <Widget>[
                 if (item.imagePaths.isNotEmpty) ...<Widget>[
                   ImageCarousel(
                     paths: item.imagePaths,
                     height: 280,
-                    borderRadius: 28,
+                    borderRadius: 0,
+                    itemSpacing: 0,
                     placeholderIcon: Icons.collections_outlined,
                   ),
                   const SizedBox(height: 18),
                 ],
-                SectionCard(
-                  addTopDivider: false,
-                  title: item.title,
-                  subtitle: item.category.trim().isEmpty
-                      ? '未分类'
-                      : item.category.trim(),
-                  child: _TimeSummaryRow(
-                    createdAt: _formatDateTime(item.createdAt),
-                    updatedAt: _formatDateTime(item.updatedAt),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SectionCard(
+                    addTopDivider: false,
+                    title: item.title,
+                    subtitle: item.category.trim().isEmpty
+                        ? '未分类'
+                        : item.category.trim(),
+                    child: _TimeSummaryRow(
+                      createdAt: _formatDateTime(item.createdAt),
+                      updatedAt: _formatDateTime(item.updatedAt),
+                    ),
                   ),
                 ),
                 if (item.body.trim().isNotEmpty) ...<Widget>[
                   const SizedBox(height: 16),
-                  SectionCard(
-                    title: '正文',
-                    subtitle: '完整保存原始内容，方便回看。',
-                    child: Text(
-                      item.body.trim(),
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyLarge?.copyWith(height: 1.7),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: SectionCard(
+                      title: '正文',
+                      subtitle: '完整保存原始内容，方便回看。',
+                      child: Text(
+                        item.body.trim(),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyLarge?.copyWith(height: 1.7),
+                      ),
                     ),
                   ),
                 ],
                 if (item.note.trim().isNotEmpty) ...<Widget>[
                   const SizedBox(height: 16),
-                  SectionCard(
-                    title: '备注',
-                    subtitle: '你补充的判断与使用场景。',
-                    child: Text(
-                      item.note.trim(),
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(height: 1.7),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: SectionCard(
+                      title: '备注',
+                      subtitle: '你补充的判断与使用场景。',
+                      child: Text(
+                        item.note.trim(),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(height: 1.7),
+                      ),
                     ),
                   ),
                 ],
                 if (item.referenceUrl.trim().isNotEmpty) ...<Widget>[
                   const SizedBox(height: 16),
-                  SectionCard(
-                    title: '引用链接',
-                    subtitle: '原始来源地址。',
-                    child: SelectableText(
-                      item.referenceUrl.trim(),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        height: 1.6,
-                        color: Theme.of(context).colorScheme.primary,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: SectionCard(
+                      title: '引用链接',
+                      subtitle: '原始来源地址。',
+                      child: SelectableText(
+                        item.referenceUrl.trim(),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          height: 1.6,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                       ),
                     ),
                   ),

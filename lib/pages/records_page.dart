@@ -467,7 +467,7 @@ class _RecordsPageState extends State<RecordsPage>
       child: ListView(
         controller: _thoughtScrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 100),
         children: <Widget>[
           AnimatedCrossFade(
             firstChild: const SizedBox.shrink(),
@@ -570,8 +570,8 @@ class _RecordsPageState extends State<RecordsPage>
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: visibleItems.length,
                         crossAxisCount: 2,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 6,
+                        crossAxisSpacing: 6,
                         itemBuilder: (BuildContext context, int index) {
                           final item = visibleItems[index];
                           return RevealMotion(
@@ -606,7 +606,7 @@ class _RecordsPageState extends State<RecordsPage>
       child: ListView(
         controller: _favoriteScrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 100),
         children: <Widget>[
           AnimatedCrossFade(
             firstChild: const SizedBox.shrink(),
@@ -711,8 +711,8 @@ class _RecordsPageState extends State<RecordsPage>
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: visibleItems.length,
                         crossAxisCount: 2,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 6,
+                        crossAxisSpacing: 6,
                         itemBuilder: (BuildContext context, int index) {
                           final item = visibleItems[index];
                           return RevealMotion(

@@ -156,6 +156,8 @@ class RecordMetaPill extends StatelessWidget {
 }
 
 class _RecordCardCover extends StatelessWidget {
+  static const double _listImageRadius = 6;
+
   const _RecordCardCover({
     required this.title,
     required this.imagePath,
@@ -188,6 +190,7 @@ class _RecordCardCover extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       constraints: BoxConstraints(minHeight: previewHeight),
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(_listImageRadius),
         gradient: LinearGradient(
           colors: <Color>[
             colorScheme.secondaryContainer,
@@ -295,7 +298,7 @@ class _AdaptiveRecordImageState extends State<_AdaptiveRecordImage> {
           path: widget.path,
           width: width,
           height: height,
-          borderRadius: 0,
+          borderRadius: _RecordCardCover._listImageRadius,
           fit: BoxFit.cover,
           placeholderIcon: widget.placeholderIcon,
           previewEnabled: false,

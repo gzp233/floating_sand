@@ -9,6 +9,7 @@ class ImageCarousel extends StatefulWidget {
     required this.paths,
     this.height = 260,
     this.borderRadius = 28,
+    this.itemSpacing = 8,
     this.placeholderIcon = Icons.collections_outlined,
     this.placeholderColor = const Color(0xFFE7EEE8),
     this.iconColor = const Color(0xFF55716A),
@@ -17,6 +18,7 @@ class ImageCarousel extends StatefulWidget {
   final List<String> paths;
   final double height;
   final double borderRadius;
+  final double itemSpacing;
   final IconData placeholderIcon;
   final Color placeholderColor;
   final Color iconColor;
@@ -62,7 +64,9 @@ class _ImageCarouselState extends State<ImageCarousel> {
             },
             itemBuilder: (BuildContext context, int index) {
               return Padding(
-                padding: EdgeInsets.only(right: index == widget.paths.length - 1 ? 0 : 8),
+                padding: EdgeInsets.only(
+                  right: index == widget.paths.length - 1 ? 0 : widget.itemSpacing,
+                ),
                 child: TappableImage(
                   path: widget.paths[index],
                   width: double.infinity,

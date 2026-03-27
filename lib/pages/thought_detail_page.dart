@@ -130,80 +130,90 @@ class _ThoughtDetailPageState extends State<ThoughtDetailPage> {
       body: _isLoading || note == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+              padding: const EdgeInsets.fromLTRB(0, 12, 0, 28),
               children: <Widget>[
                 if (note.imagePaths.isNotEmpty) ...<Widget>[
                   ImageCarousel(
                     paths: note.imagePaths,
                     height: 280,
-                    borderRadius: 28,
+                    borderRadius: 0,
+                    itemSpacing: 0,
                     placeholderIcon: Icons.route_outlined,
                     placeholderColor: Theme.of(context).colorScheme.secondaryContainer,
                     iconColor: Theme.of(context).colorScheme.onSecondaryContainer,
                   ),
                   const SizedBox(height: 18),
                 ],
-                SectionCard(
-                  addTopDivider: false,
-                  title: note.title,
-                  subtitle: note.category.trim().isEmpty
-                      ? '未分类'
-                      : note.category.trim(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: <Widget>[
-                          _ThoughtStatChip(label: '步骤 ${note.steps.length}'),
-                          _ThoughtStatChip(label: '图片 ${_countImages(note)}'),
-                          _ThoughtStatChip(
-                            label: '问题 ${_countQuestions(note)}',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      _TimeSummaryRow(
-                        createdAt: _formatDateTime(note.createdAt),
-                        updatedAt: _formatDateTime(note.updatedAt),
-                      ),
-                    ],
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SectionCard(
+                    addTopDivider: false,
+                    title: note.title,
+                    subtitle: note.category.trim().isEmpty
+                        ? '未分类'
+                        : note.category.trim(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: <Widget>[
+                            _ThoughtStatChip(label: '步骤 ${note.steps.length}'),
+                            _ThoughtStatChip(label: '图片 ${_countImages(note)}'),
+                            _ThoughtStatChip(
+                              label: '问题 ${_countQuestions(note)}',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _TimeSummaryRow(
+                          createdAt: _formatDateTime(note.createdAt),
+                          updatedAt: _formatDateTime(note.updatedAt),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 if (note.overview.trim().isNotEmpty) ...<Widget>[
                   const SizedBox(height: 16),
-                  SectionCard(
-                    title: '概述',
-                    subtitle: '先看主题，再决定是否深入步骤。',
-                    child: Text(
-                      note.overview.trim(),
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyLarge?.copyWith(height: 1.7),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: SectionCard(
+                      title: '概述',
+                      subtitle: '先看主题，再决定是否深入步骤。',
+                      child: Text(
+                        note.overview.trim(),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyLarge?.copyWith(height: 1.7),
+                      ),
                     ),
                   ),
                 ],
                 if (note.steps.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 16),
-                  SectionCard(
-                    title: '完整步骤',
-                    subtitle: '逐条查看操作说明与可能问题。',
-                    child: Column(
-                      children: List<Widget>.generate(note.steps.length, (
-                        int index,
-                      ) {
-                        final step = note.steps[index];
-                        return Padding(
-                          padding: EdgeInsets.only(
-                            bottom: index == note.steps.length - 1 ? 0 : 18,
-                          ),
-                          child: _ThoughtStepDetail(
-                            index: index + 1,
-                            step: step,
-                          ),
-                        );
-                      }),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: SectionCard(
+                      title: '完整步骤',
+                      subtitle: '逐条查看操作说明与可能问题。',
+                      child: Column(
+                        children: List<Widget>.generate(note.steps.length, (
+                          int index,
+                        ) {
+                          final step = note.steps[index];
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              bottom: index == note.steps.length - 1 ? 0 : 18,
+                            ),
+                            child: _ThoughtStepDetail(
+                              index: index + 1,
+                              step: step,
+                            ),
+                          );
+                        }),
+                      ),
                     ),
                   ),
                 ],
