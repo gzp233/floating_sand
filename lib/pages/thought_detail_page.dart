@@ -4,6 +4,7 @@ import 'package:isar/isar.dart';
 import '../models/thought_note.dart';
 import '../services/app_database.dart';
 import '../services/managed_image_service.dart';
+import '../widgets/image_carousel.dart';
 import '../widgets/section_card.dart';
 import '../widgets/tappable_image.dart';
 import 'editors/thought_editor_page.dart';
@@ -90,8 +91,8 @@ class _ThoughtDetailPageState extends State<ThoughtDetailPage> {
     }
 
     await _database.deleteThought(note.id);
-    if (note.localImagePath.isNotEmpty) {
-      await _imageService.deleteIfExists(note.localImagePath);
+    for (final path in note.imagePaths.toSet()) {
+      await _imageService.deleteIfExists(path);
     }
     for (final step in note.steps) {
       if (step.imagePath.isNotEmpty) {
@@ -131,14 +132,14 @@ class _ThoughtDetailPageState extends State<ThoughtDetailPage> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
               children: <Widget>[
-                if (note.localImagePath.trim().isNotEmpty) ...<Widget>[
-                  AdaptiveTappableImage(
-                    path: note.localImagePath,
+                if (note.imagePaths.isNotEmpty) ...<Widget>[
+                  ImageCarousel(
+                    paths: note.imagePaths,
+                    height: 280,
                     borderRadius: 28,
-                    fallbackHeight: 240,
                     placeholderIcon: Icons.route_outlined,
-                    placeholderColor: const Color(0xFFE4F2EE),
-                    iconColor: const Color(0xFF115E59),
+                    placeholderColor: Theme.of(context).colorScheme.secondaryContainer,
+                    iconColor: Theme.of(context).colorScheme.onSecondaryContainer,
                   ),
                   const SizedBox(height: 18),
                 ],
@@ -212,7 +213,7 @@ class _ThoughtDetailPageState extends State<ThoughtDetailPage> {
   }
 
   int _countImages(ThoughtNote note) {
-    return (note.localImagePath.trim().isNotEmpty ? 1 : 0) +
+    return note.imagePaths.length +
         note.steps
             .where((ThoughtStep step) => step.imagePath.trim().isNotEmpty)
             .length;
@@ -240,16 +241,17 @@ class _ThoughtStatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8EEE8),
+        color: colorScheme.secondaryContainer,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: const Color(0xFF4B5F58),
+          color: colorScheme.onSecondaryContainer,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -265,11 +267,12 @@ class _ThoughtStepDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F3EC),
+        color: colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -281,8 +284,8 @@ class _ThoughtStepDetail extends StatelessWidget {
                 width: 28,
                 height: 28,
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFDCE8E2),
+                decoration: BoxDecoration(
+                  color: colorScheme.secondaryContainer,
                   shape: BoxShape.circle,
                 ),
                 child: Text('$index'),
@@ -322,14 +325,14 @@ class _ThoughtStepDetail extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
                 '可能问题：${step.possibleQuestion.trim()}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   height: 1.6,
-                  color: const Color(0xFF4C5D58),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -367,10 +370,11 @@ class _TimePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F2EA),
+        color: colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -379,15 +383,15 @@ class _TimePill extends StatelessWidget {
           Text(
             '$label：',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF76827D),
+              color: colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w700,
             ),
           ),
           Text(
             value,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF22342F)),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurface,
+            ),
           ),
         ],
       ),

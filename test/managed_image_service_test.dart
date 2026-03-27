@@ -117,4 +117,42 @@ void main() {
     expect(File(orphanPath).existsSync(), isFalse);
     expect(File(keptPath).existsSync(), isTrue);
   });
+
+  test('cleanupUnusedImages keeps all referenced images in a multi-image item', () async {
+    final keptPathA = await imageService.storeImportedBytes(
+      bytes: <int>[31, 32, 33, 34],
+      originalName: 'kept-a.png',
+    );
+    final keptPathB = await imageService.storeImportedBytes(
+      bytes: <int>[41, 42, 43, 44],
+      originalName: 'kept-b.png',
+    );
+    final orphanPath = await imageService.storeImportedBytes(
+      bytes: <int>[51, 52, 53, 54],
+      originalName: 'orphan-b.png',
+    );
+
+    await database.replaceAllData(
+      AppDataSnapshot(
+        profile: null,
+        categories: const [],
+        favorites: <FavoriteItem>[
+          FavoriteItem(
+            id: 1,
+            title: 'Multi',
+            imagePaths: <String>[keptPathA, keptPathB],
+            localImagePath: keptPathA,
+          ),
+        ],
+        thoughts: const [],
+      ),
+    );
+
+    final deletedCount = await imageService.cleanupUnusedImages();
+
+    expect(deletedCount, 1);
+    expect(File(keptPathA).existsSync(), isTrue);
+    expect(File(keptPathB).existsSync(), isTrue);
+    expect(File(orphanPath).existsSync(), isFalse);
+  });
 }

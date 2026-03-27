@@ -20,13 +20,14 @@ class PageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 20),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.62),
+          color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.86),
           borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: const Color(0xFFE2DBCF)),
+          border: Border.all(color: colorScheme.outlineVariant),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
@@ -39,7 +40,7 @@ class PageHeader extends StatelessWidget {
                   children: <Widget>[
                     DecoratedBox(
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE8EEE8),
+                        color: colorScheme.secondaryContainer,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Padding(
@@ -50,7 +51,7 @@ class PageHeader extends StatelessWidget {
                         child: Text(
                           eyebrow,
                           style: textTheme.labelMedium?.copyWith(
-                            color: const Color(0xFF60716A),
+                            color: colorScheme.onSecondaryContainer,
                             letterSpacing: 1.0,
                             fontWeight: FontWeight.w800,
                           ),
@@ -61,7 +62,7 @@ class PageHeader extends StatelessWidget {
                     Text(
                       title,
                       style: textTheme.headlineMedium?.copyWith(
-                        color: const Color(0xFF16302B),
+                        color: colorScheme.onSurface,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.8,
                         height: 1.08,
@@ -73,7 +74,7 @@ class PageHeader extends StatelessWidget {
                       child: Text(
                         description,
                         style: textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF5C6A65),
+                          color: colorScheme.onSurfaceVariant,
                           height: 1.6,
                         ),
                       ),
@@ -82,16 +83,16 @@ class PageHeader extends StatelessWidget {
                       const SizedBox(height: 14),
                       Row(
                         children: <Widget>[
-                          const Icon(
+                          Icon(
                             Icons.schedule_outlined,
                             size: 15,
-                            color: Color(0xFF7D8984),
+                            color: colorScheme.onSurfaceVariant,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             caption!,
                             style: textTheme.bodySmall?.copyWith(
-                              color: const Color(0xFF7D8984),
+                              color: colorScheme.onSurfaceVariant,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

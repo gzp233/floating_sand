@@ -95,8 +95,8 @@ class _ThoughtsPageState extends State<ThoughtsPage> {
 
   Future<void> _deleteThought(ThoughtNote note) async {
     await _database.deleteThought(note.id);
-    if (note.localImagePath.isNotEmpty) {
-      await _imageService.deleteIfExists(note.localImagePath);
+    for (final path in note.imagePaths.toSet()) {
+      await _imageService.deleteIfExists(path);
     }
     for (final step in note.steps) {
       if (step.imagePath.isNotEmpty) {
@@ -328,7 +328,7 @@ class _ThoughtsPageState extends State<ThoughtsPage> {
         return false;
       }
       final hasAnyImage =
-          item.localImagePath.trim().isNotEmpty ||
+          item.hasImages ||
           item.steps.any(
             (ThoughtStep step) => step.imagePath.trim().isNotEmpty,
           );
@@ -476,7 +476,9 @@ class _ThoughtRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageCount = item.steps
+    final colorScheme = Theme.of(context).colorScheme;
+    final imageCount = item.imagePaths.length +
+      item.steps
         .where((ThoughtStep step) => step.imagePath.trim().isNotEmpty)
         .length;
     final questionCount = item.steps
@@ -487,12 +489,12 @@ class _ThoughtRow extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
       child: Material(
-        color: Colors.white.withValues(alpha: 0.78),
+        color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(24),
         child: InkWell(
           borderRadius: BorderRadius.circular(24),
           onTap: onOpen,
-          splashColor: const Color(0xFF16302B).withValues(alpha: 0.05),
+          splashColor: colorScheme.primary.withValues(alpha: 0.08),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -501,7 +503,7 @@ class _ThoughtRow extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    _ThoughtPreview(imagePath: item.localImagePath),
+                    _ThoughtPreview(imagePath: item.primaryImagePath),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
@@ -527,10 +529,19 @@ class _ThoughtRow extends StatelessWidget {
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFE9EFE6),
+                                    color: colorScheme.secondaryContainer,
                                     borderRadius: BorderRadius.circular(999),
                                   ),
-                                  child: Text(item.category.trim()),
+                                  child: Text(
+                                    item.category.trim(),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: colorScheme.onSecondaryContainer,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
                                 ),
                             ],
                           ),
@@ -576,7 +587,7 @@ class _ThoughtRow extends StatelessWidget {
                   runSpacing: 8,
                   children: <Widget>[
                     _ThoughtMetaPill(label: '步骤 ${item.steps.length}'),
-                    _ThoughtMetaPill(label: '步骤图 $imageCount'),
+                    _ThoughtMetaPill(label: '图片 $imageCount'),
                     _ThoughtMetaPill(label: '问题提示 $questionCount'),
                   ],
                 ),
@@ -586,7 +597,7 @@ class _ThoughtRow extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF6F2EA),
+                      color: colorScheme.surfaceContainer,
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Column(
@@ -596,7 +607,7 @@ class _ThoughtRow extends StatelessWidget {
                           '步骤摘要',
                           style: Theme.of(context).textTheme.labelLarge
                               ?.copyWith(
-                                color: const Color(0xFF66746E),
+                                color: colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w700,
                               ),
                         ),
@@ -649,16 +660,17 @@ class _ThoughtMetaPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8EEE8),
+        color: colorScheme.secondaryContainer,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: const Color(0xFF4B5F58),
+          color: colorScheme.onSecondaryContainer,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -673,6 +685,7 @@ class _ThoughtStepSnippet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final summary = step.detail.trim().isEmpty ? '未填写步骤说明' : step.detail.trim();
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -681,8 +694,8 @@ class _ThoughtStepSnippet extends StatelessWidget {
           width: 24,
           height: 24,
           alignment: Alignment.center,
-          decoration: const BoxDecoration(
-            color: Color(0xFFDCE8E2),
+          decoration: BoxDecoration(
+            color: colorScheme.secondaryContainer,
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.subdirectory_arrow_right, size: 14),
@@ -705,19 +718,19 @@ class _ThoughtStepSnippet extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   height: 1.5,
-                  color: const Color(0xFF627069),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
           ),
         ),
         if (step.imagePath.trim().isNotEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(left: 8, top: 2),
             child: Icon(
               Icons.image_outlined,
               size: 16,
-              color: Color(0xFF627069),
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
       ],

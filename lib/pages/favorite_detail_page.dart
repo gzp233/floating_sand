@@ -4,8 +4,8 @@ import 'package:isar/isar.dart';
 import '../models/favorite_item.dart';
 import '../services/app_database.dart';
 import '../services/managed_image_service.dart';
+import '../widgets/image_carousel.dart';
 import '../widgets/section_card.dart';
-import '../widgets/tappable_image.dart';
 import 'editors/favorite_editor_page.dart';
 
 /// 收藏详情页，负责查看完整内容并从详情进入编辑。
@@ -91,8 +91,8 @@ class _FavoriteDetailPageState extends State<FavoriteDetailPage> {
     }
 
     await _database.deleteFavorite(item.id);
-    if (item.localImagePath.isNotEmpty) {
-      await _imageService.deleteIfExists(item.localImagePath);
+    for (final path in item.imagePaths.toSet()) {
+      await _imageService.deleteIfExists(path);
     }
     if (!mounted) {
       return;
@@ -127,11 +127,11 @@ class _FavoriteDetailPageState extends State<FavoriteDetailPage> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
               children: <Widget>[
-                if (item.localImagePath.trim().isNotEmpty) ...<Widget>[
-                  AdaptiveTappableImage(
-                    path: item.localImagePath,
+                if (item.imagePaths.isNotEmpty) ...<Widget>[
+                  ImageCarousel(
+                    paths: item.imagePaths,
+                    height: 280,
                     borderRadius: 28,
-                    fallbackHeight: 240,
                     placeholderIcon: Icons.collections_outlined,
                   ),
                   const SizedBox(height: 18),
@@ -182,7 +182,7 @@ class _FavoriteDetailPageState extends State<FavoriteDetailPage> {
                       item.referenceUrl.trim(),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         height: 1.6,
-                        color: const Color(0xFF355C54),
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ),
@@ -228,10 +228,11 @@ class _TimePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F2EA),
+        color: colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -240,15 +241,15 @@ class _TimePill extends StatelessWidget {
           Text(
             '$label：',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF76827D),
+              color: colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w700,
             ),
           ),
           Text(
             value,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF22342F)),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurface,
+            ),
           ),
         ],
       ),

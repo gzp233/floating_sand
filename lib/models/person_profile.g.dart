@@ -15,7 +15,7 @@ extension GetPersonProfileCollection on Isar {
 
 const PersonProfileSchema = CollectionSchema(
   name: r'PersonProfile',
-  id: -8150412255648707,
+  id: -8150412255648707584,
   properties: {
     r'bio': PropertySchema(
       id: 0,
@@ -1430,7 +1430,7 @@ extension PersonProfileQueryProperty
 
 const ProfilePersonalitySchema = Schema(
   name: r'ProfilePersonality',
-  id: 8728012199102698,
+  id: 8728012199102698496,
   properties: {
     r'summary': PropertySchema(
       id: 0,
@@ -2023,7 +2023,7 @@ extension ProfilePersonalityQueryObject
 
 const ProfileCustomModuleSchema = Schema(
   name: r'ProfileCustomModule',
-  id: -8082775767592496,
+  id: -8082775767592496128,
   properties: {
     r'content': PropertySchema(
       id: 0,

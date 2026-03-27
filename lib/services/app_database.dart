@@ -201,30 +201,25 @@ class AppDatabase {
   Future<void> deleteFavoriteCategory(Id id) async {
     if (_useWebStore) {
       final snapshot = await _readWebSnapshot();
+      final categoryName = _categoryNameById(snapshot.categories, id) ?? '';
+      final isInUse = categoryName.isNotEmpty &&
+          (snapshot.favorites.any(
+                (FavoriteItem item) => item.category == categoryName,
+              ) ||
+              snapshot.thoughts.any(
+                (ThoughtNote item) => item.category == categoryName,
+              ));
+      if (isInUse) {
+        throw StateError('该分类下还有想法或收藏，无法删除');
+      }
       final categories = snapshot.categories
           .where((FavoriteCategory item) => item.id != id)
           .toList();
-      final favorites = snapshot.favorites.map((FavoriteItem item) {
-        if (item.category == _categoryNameById(snapshot.categories, id)) {
-          return FavoriteItem(
-            id: item.id,
-            title: item.title,
-            category: '',
-            body: item.body,
-            localImagePath: item.localImagePath,
-            referenceUrl: item.referenceUrl,
-            note: item.note,
-            createdAtValue: item.createdAt,
-            updatedAtValue: item.updatedAt,
-          );
-        }
-        return item;
-      }).toList();
       await _writeWebSnapshot(
         AppDataSnapshot(
           profile: snapshot.profile,
           categories: categories,
-          favorites: favorites,
+          favorites: snapshot.favorites,
           thoughts: snapshot.thoughts,
         ),
       );
@@ -233,20 +228,20 @@ class AppDatabase {
 
     final category = await database.favoriteCategorys.get(id);
     final categoryName = category?.name;
-    await database.writeTxn(() async {
-      if (categoryName != null && categoryName.isNotEmpty) {
-        final favorites = await database.favoriteItems
-            .filter()
-            .categoryEqualTo(categoryName)
-            .findAll();
-        for (final item in favorites) {
-          item.category = '';
-          item.updatedAt = DateTime.now();
-        }
-        if (favorites.isNotEmpty) {
-          await database.favoriteItems.putAll(favorites);
-        }
+    if (categoryName != null && categoryName.isNotEmpty) {
+      final favoriteInUse = await database.favoriteItems
+          .filter()
+          .categoryEqualTo(categoryName)
+          .findFirst();
+      final thoughtInUse = await database.thoughtNotes
+          .filter()
+          .categoryEqualTo(categoryName)
+          .findFirst();
+      if (favoriteInUse != null || thoughtInUse != null) {
+        throw StateError('该分类下还有想法或收藏，无法删除');
       }
+    }
+    await database.writeTxn(() async {
       await database.favoriteCategorys.delete(id);
     });
   }
@@ -265,6 +260,7 @@ class AppDatabase {
               title: item.title,
               category: item.category,
               body: item.body,
+              imagePaths: item.imagePaths,
               localImagePath: item.localImagePath,
               referenceUrl: item.referenceUrl,
               note: item.note,
@@ -346,14 +342,29 @@ class AppDatabase {
   }
 
   Future<List<String>> getThoughtCategories() async {
+    final categories = await getFavoriteCategories();
+    return categories.map((FavoriteCategory item) => item.name).toList();
+  }
+
+  Future<Map<String, int>> getCategoryUsageCounts() async {
+    final favorites = await getFavorites();
     final thoughts = await getThoughts();
-    final categories = thoughts
-        .map((ThoughtNote item) => item.category.trim())
-        .where((String item) => item.isNotEmpty)
-        .toSet()
-        .toList();
-    categories.sort();
-    return categories;
+    final counts = <String, int>{};
+    for (final item in favorites) {
+      final category = item.category.trim();
+      if (category.isEmpty) {
+        continue;
+      }
+      counts[category] = (counts[category] ?? 0) + 1;
+    }
+    for (final item in thoughts) {
+      final category = item.category.trim();
+      if (category.isEmpty) {
+        continue;
+      }
+      counts[category] = (counts[category] ?? 0) + 1;
+    }
+    return counts;
   }
 
   Future<void> saveThought(ThoughtNote note) async {
@@ -370,6 +381,7 @@ class AppDatabase {
               title: note.title,
               category: note.category,
               overview: note.overview,
+              imagePaths: note.imagePaths,
               localImagePath: note.localImagePath,
               stepsValue: note.steps,
               createdAtValue: note.createdAt,
@@ -498,9 +510,17 @@ class AppDatabase {
       hasProfile: profile != null,
       categoryCount: categories.length,
       favoriteCount: favorites.length,
-      imageCount: favorites
-          .where((FavoriteItem item) => item.localImagePath.isNotEmpty)
-          .length,
+      imageCount: (profile?.photoPaths.length ?? 0) +
+          favorites.fold<int>(
+            0,
+            (int total, FavoriteItem item) => total + item.imagePaths.length,
+          ) +
+          thoughts.fold<int>(0, (int total, ThoughtNote item) {
+            final stepImageCount = item.steps
+                .where((ThoughtStep step) => step.imagePath.trim().isNotEmpty)
+                .length;
+            return total + item.imagePaths.length + stepImageCount;
+          }),
       thoughtCount: thoughts.length,
     );
   }

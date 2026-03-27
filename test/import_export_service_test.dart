@@ -145,6 +145,56 @@ void main() {
       );
     });
 
+    test('preserves multiple top-level images across payload round trip', () async {
+      final FavoriteItem favorite = FavoriteItem()
+        ..title = '多图收藏'
+        ..category = '灵感'
+        ..imagePaths = <String>[
+          'data:image/png;base64,${base64Encode(utf8.encode('favorite-1'))}',
+          'data:image/png;base64,${base64Encode(utf8.encode('favorite-2'))}',
+        ]
+        ..localImagePath =
+            'data:image/png;base64,${base64Encode(utf8.encode('favorite-1'))}';
+
+      final ThoughtNote thought = ThoughtNote()
+        ..title = '多图想法'
+        ..imagePaths = <String>[
+          'data:image/png;base64,${base64Encode(utf8.encode('thought-1'))}',
+          'data:image/png;base64,${base64Encode(utf8.encode('thought-2'))}',
+          'data:image/png;base64,${base64Encode(utf8.encode('thought-3'))}',
+        ]
+        ..localImagePath =
+            'data:image/png;base64,${base64Encode(utf8.encode('thought-1'))}';
+
+      final payload = await service.buildPayloadFromSnapshot(
+        const AppDataSnapshot(
+          profile: null,
+          categories: <FavoriteCategory>[],
+          favorites: <FavoriteItem>[],
+          thoughts: <ThoughtNote>[],
+        ),
+      );
+      payload['favorites'] = <FavoriteItem>[favorite]
+          .map((FavoriteItem item) => item.toJson())
+          .toList();
+      payload['thoughts'] = <ThoughtNote>[thought]
+          .map((ThoughtNote item) => item.toJson())
+          .toList();
+
+      final restored = await service.snapshotFromPayload(payload);
+
+      expect(restored.favorites.single.imagePaths, hasLength(2));
+      expect(
+        restored.favorites.single.primaryImagePath,
+        restored.favorites.single.imagePaths.first,
+      );
+      expect(restored.thoughts.single.imagePaths, hasLength(3));
+      expect(
+        restored.thoughts.single.primaryImagePath,
+        restored.thoughts.single.imagePaths.first,
+      );
+    });
+
     test('keeps plain file paths when no archive entry exists', () async {
       final Map<String, dynamic> payload = <String, dynamic>{
         'profile': <String, dynamic>{

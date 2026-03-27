@@ -6,7 +6,6 @@ import 'package:path_provider/path_provider.dart';
 
 import '../services/app_database.dart';
 import '../services/managed_image_service.dart';
-import '../widgets/page_header.dart';
 import '../widgets/reveal_motion.dart';
 import '../widgets/section_card.dart';
 
@@ -18,14 +17,12 @@ class SettingsPage extends StatefulWidget {
     required this.onExport,
     required this.onImport,
     required this.onClearData,
-    required this.onCleanupUnusedImages,
   });
 
   final int refreshSeed;
   final Future<void> Function() onExport;
   final Future<void> Function() onImport;
   final Future<void> Function() onClearData;
-  final Future<int> Function() onCleanupUnusedImages;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -35,7 +32,6 @@ class _SettingsPageState extends State<SettingsPage> {
   final AppDatabase _database = AppDatabase.instance;
   final ManagedImageService _imageService = ManagedImageService.instance;
   late Future<_SettingsViewData> _viewDataFuture;
-  bool _isCleaningImages = false;
 
   @override
   void initState() {
@@ -79,53 +75,49 @@ class _SettingsPageState extends State<SettingsPage> {
     return directory.listSync().whereType<File>().length;
   }
 
-  Future<void> _cleanupUnusedImages() async {
-    setState(() {
-      _isCleaningImages = true;
-    });
-    try {
-      final deletedCount = await widget.onCleanupUnusedImages();
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _viewDataFuture = _loadViewData();
-      });
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text('已清理 $deletedCount 张未引用图片')));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isCleaningImages = false;
-        });
-      }
+  void _refreshViewData() {
+    if (!mounted) {
+      return;
     }
+    setState(() {
+      _viewDataFuture = _loadViewData();
+    });
+  }
+
+  Future<void> _handleImport() async {
+    await widget.onImport();
+    _refreshViewData();
+  }
+
+  Future<void> _handleClearData() async {
+    await widget.onClearData();
+    _refreshViewData();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: FutureBuilder<_SettingsViewData>(
-        future: _viewDataFuture,
-        builder:
-            (BuildContext context, AsyncSnapshot<_SettingsViewData> snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final data = snapshot.data!;
-              return ListView(
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+        ),
+        title: const Text('设置'),
+      ),
+      body: SafeArea(
+        top: false,
+        child: FutureBuilder<_SettingsViewData>(
+          future: _viewDataFuture,
+          builder:
+              (BuildContext context, AsyncSnapshot<_SettingsViewData> snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final data = snapshot.data!;
+                return ListView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
                 children: <Widget>[
-                  const RevealMotion(
-                    child: PageHeader(
-                      eyebrow: 'LOCAL CONTROL',
-                      title: '所有数据都只留在本地，所以管理动作必须清晰可追踪。',
-                      description: '这里负责查看存量、导出备份、恢复本地数据以及执行清空。',
-                    ),
-                  ),
                   RevealMotion(
-                    delay: const Duration(milliseconds: 80),
                     child: SectionCard(
                       addTopDivider: false,
                       title: '数据总览',
@@ -134,7 +126,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ),
                   RevealMotion(
-                    delay: const Duration(milliseconds: 150),
+                    delay: const Duration(milliseconds: 80),
                     child: SectionCard(
                       title: '导出与导入',
                       subtitle: kIsWeb
@@ -150,7 +142,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                           const SizedBox(height: 12),
                           OutlinedButton.icon(
-                            onPressed: widget.onImport,
+                            onPressed: _handleImport,
                             icon: const Icon(Icons.unarchive_outlined),
                             label: const Text('从 ZIP 导入数据'),
                           ),
@@ -159,7 +151,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ),
                   RevealMotion(
-                    delay: const Duration(milliseconds: 220),
+                    delay: const Duration(milliseconds: 160),
                     child: SectionCard(
                       title: '本地数据管理',
                       subtitle: kIsWeb
@@ -172,7 +164,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF7F3EC),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainer,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: kIsWeb
@@ -186,7 +180,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                             .textTheme
                                             .labelLarge
                                             ?.copyWith(
-                                              color: const Color(0xFF61706A),
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
                                               fontWeight: FontWeight.w700,
                                             ),
                                       ),
@@ -197,7 +193,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                             .textTheme
                                             .titleMedium
                                             ?.copyWith(
-                                              color: const Color(0xFF16302B),
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface,
                                               fontWeight: FontWeight.w800,
                                             ),
                                       ),
@@ -215,23 +213,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                           const SizedBox(height: 16),
                           OutlinedButton.icon(
-                            onPressed: kIsWeb || _isCleaningImages
-                                ? null
-                                : _cleanupUnusedImages,
-                            icon: _isCleaningImages
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.cleaning_services_outlined),
-                            label: const Text('清理未引用图片'),
-                          ),
-                          const SizedBox(height: 12),
-                          OutlinedButton.icon(
-                            onPressed: widget.onClearData,
+                            onPressed: _handleClearData,
                             icon: const Icon(Icons.delete_outline),
                             label: const Text('清空本地数据'),
                           ),
@@ -240,8 +222,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ),
                 ],
-              );
-            },
+                );
+              },
+        ),
       ),
     );
   }
@@ -280,6 +263,7 @@ class _SummaryMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: 140,
       child: Column(
@@ -291,7 +275,7 @@ class _SummaryMetric extends StatelessWidget {
             value,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF16302B),
+              color: colorScheme.onSurface,
             ),
           ),
         ],

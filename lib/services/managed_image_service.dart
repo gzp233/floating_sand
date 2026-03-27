@@ -136,15 +136,15 @@ class ManagedImageService {
     }
 
     paths.addAll(
-      snapshot.favorites
-          .map((item) => item.localImagePath)
-          .where((String item) => item.isNotEmpty),
+      snapshot.favorites.expand(
+        (item) => item.imagePaths.where((String path) => path.isNotEmpty),
+      ),
     );
 
     for (final thought in snapshot.thoughts) {
-      if (thought.localImagePath.isNotEmpty) {
-        paths.add(thought.localImagePath);
-      }
+      paths.addAll(
+        thought.imagePaths.where((String item) => item.isNotEmpty),
+      );
       paths.addAll(
         thought.steps
             .map((ThoughtStep step) => step.imagePath)

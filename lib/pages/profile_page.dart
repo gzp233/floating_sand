@@ -8,11 +8,61 @@ import '../widgets/reveal_motion.dart';
 import '../widgets/section_card.dart';
 import '../widgets/tappable_image.dart';
 
+class ProfilePageController extends ChangeNotifier {
+  bool _isEditing = false;
+  bool _isSaving = false;
+  VoidCallback? _onPrimaryAction;
+  Future<void> Function()? _onCancel;
+
+  bool get isEditing => _isEditing;
+  bool get isSaving => _isSaving;
+
+  void bind({
+    required bool isEditing,
+    required bool isSaving,
+    required VoidCallback onPrimaryAction,
+    required Future<void> Function() onCancel,
+  }) {
+    final changed = _isEditing != isEditing ||
+        _isSaving != isSaving ||
+        _onPrimaryAction != onPrimaryAction ||
+        _onCancel != onCancel;
+    _isEditing = isEditing;
+    _isSaving = isSaving;
+    _onPrimaryAction = onPrimaryAction;
+    _onCancel = onCancel;
+    if (changed) {
+      notifyListeners();
+    }
+  }
+
+  void unbind() {
+    _onPrimaryAction = null;
+    _onCancel = null;
+  }
+
+  void triggerPrimaryAction() {
+    _onPrimaryAction?.call();
+  }
+
+  Future<void> triggerCancel() async {
+    final cancel = _onCancel;
+    if (cancel != null) {
+      await cancel();
+    }
+  }
+}
+
 /// 档案页，默认以只读方式展示，进入编辑后可维护照片与补充信息。
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key, required this.refreshSeed});
+  const ProfilePage({
+    super.key,
+    required this.refreshSeed,
+    required this.controller,
+  });
 
   final int refreshSeed;
+  final ProfilePageController controller;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -35,7 +85,6 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isRefreshing = false;
   bool _isSaving = false;
   bool _isEditing = false;
-  DateTime? _updatedAt;
   List<_ModuleDraft> _modules = <_ModuleDraft>[];
   List<String> _photoPaths = <String>[];
   final Set<String> _pendingCleanupPaths = <String>{};
@@ -43,12 +92,17 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
+    _syncControllerState();
     _loadProfile(showBlockingLoader: true);
   }
 
   @override
   void didUpdateWidget(covariant ProfilePage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.unbind();
+      _syncControllerState();
+    }
     if (oldWidget.refreshSeed != widget.refreshSeed) {
       _loadProfile(showBlockingLoader: false);
     }
@@ -65,6 +119,7 @@ class _ProfilePageState extends State<ProfilePage> {
     for (final module in _modules) {
       module.dispose();
     }
+    widget.controller.unbind();
     super.dispose();
   }
 
@@ -86,6 +141,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _isRefreshing = false;
       _isEditing = false;
     });
+    _syncControllerState();
   }
 
   void _applyProfile(PersonProfile profile) {
@@ -100,7 +156,6 @@ class _ProfilePageState extends State<ProfilePage> {
       module.dispose();
     }
     _modules = profile.customModules.map(_toDraft).toList();
-    _updatedAt = profile.updatedAt;
     _pendingCleanupPaths.clear();
   }
 
@@ -115,6 +170,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _isSaving = true;
     });
+    _syncControllerState();
 
     final profile = PersonProfile(
       id: 1,
@@ -152,11 +208,18 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _isSaving = false;
       _isEditing = false;
-      _updatedAt = DateTime.now();
     });
+    _syncControllerState();
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(const SnackBar(content: Text('个人档案已保存')));
+  }
+
+  void _startEditing() {
+    setState(() {
+      _isEditing = true;
+    });
+    _syncControllerState();
   }
 
   void _addModule() {
@@ -210,6 +273,15 @@ class _ProfilePageState extends State<ProfilePage> {
     await _loadProfile(showBlockingLoader: false);
   }
 
+  void _syncControllerState() {
+    widget.controller.bind(
+      isEditing: _isEditing,
+      isSaving: _isSaving,
+      onPrimaryAction: _isEditing ? _saveProfile : _startEditing,
+      onCancel: _cancelEditing,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -217,35 +289,16 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     return SafeArea(
+      top: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: <Widget>[
-          RevealMotion(
-            child: _ProfileTopBar(
-              caption: _updatedAt == null
-                  ? '尚未保存'
-                  : '最近更新：${_formatDateTime(_updatedAt!)}',
-              isEditing: _isEditing,
-              isSaving: _isSaving,
-              onCancel: _cancelEditing,
-              onPrimaryAction: () {
-                if (_isEditing) {
-                  _saveProfile();
-                } else {
-                  setState(() {
-                    _isEditing = true;
-                  });
-                }
-              },
-            ),
-          ),
           if (_isRefreshing)
             const Padding(
-              padding: EdgeInsets.only(bottom: 14),
+              padding: EdgeInsets.only(bottom: 12),
               child: LinearProgressIndicator(minHeight: 2),
             ),
           RevealMotion(
-            delay: const Duration(milliseconds: 70),
             child: _ProfileSectionFrame(
               child: SectionCard(
                 addTopDivider: false,
@@ -295,15 +348,18 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
           ),
+          const SizedBox(height: 12),
           RevealMotion(
-            delay: const Duration(milliseconds: 130),
+            delay: const Duration(milliseconds: 70),
             child: _ProfileSectionFrame(
               child: SectionCard(
+                addTopDivider: false,
                 title: '个性与兴趣',
                 subtitle: '用易扫描的结构保留自我描述，而不是写成长段自述。',
-                child: _isEditing
-                    ? Column(
-                        children: <Widget>[
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _isEditing
+                      ? <Widget>[
                           TextField(
                             controller: _personalitySummaryController,
                             maxLines: 3,
@@ -331,11 +387,8 @@ class _ProfilePageState extends State<ProfilePage> {
                               labelText: '兴趣爱好（逗号分隔）',
                             ),
                           ),
-                        ],
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
+                        ]
+                      : <Widget>[
                           _ReadOnlyBlock(
                             items: <_ReadOnlyItem>[
                               _ReadOnlyItem(
@@ -359,14 +412,16 @@ class _ProfilePageState extends State<ProfilePage> {
                             tags: _splitInput(_hobbiesController.text),
                           ),
                         ],
-                      ),
+                ),
               ),
             ),
           ),
+          const SizedBox(height: 12),
           RevealMotion(
-            delay: const Duration(milliseconds: 190),
+            delay: const Duration(milliseconds: 130),
             child: _ProfileSectionFrame(
               child: SectionCard(
+                addTopDivider: false,
                 title: '其他信息',
                 subtitle: '除了固定档案外，其余内容都以独立模块补充，避免主信息区过载。',
                 trailing: _isEditing
@@ -385,18 +440,12 @@ class _ProfilePageState extends State<ProfilePage> {
                           final module = _modules[index];
                           return Padding(
                             padding: EdgeInsets.only(
-                              bottom: index == _modules.length - 1 ? 0 : 28,
+                              bottom: index == _modules.length - 1 ? 0 : 16,
                             ),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 220),
                               padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.72),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: const Color(0xFFE0D9CD),
-                                ),
-                              ),
+                              color: Colors.white,
                               child: _isEditing
                                   ? Column(
                                       children: <Widget>[
@@ -461,10 +510,6 @@ class _ProfilePageState extends State<ProfilePage> {
         .toList();
   }
 
-  String _formatDateTime(DateTime value) {
-    return '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')} '
-        '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
-  }
 }
 
 class _ModuleDraft {
@@ -493,6 +538,7 @@ class _ReadOnlyBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: items
@@ -505,7 +551,7 @@ class _ReadOnlyBlock extends StatelessWidget {
                   Text(
                     item.label,
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: const Color(0xFF6B756F),
+                      color: colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -534,13 +580,14 @@ class _TagGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
           title,
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: const Color(0xFF6B756F),
+            color: colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -560,10 +607,16 @@ class _TagGroup extends StatelessWidget {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE9EFE6),
+                      color: colorScheme.secondaryContainer,
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: Text(item),
+                    child: Text(
+                      item,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSecondaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 )
                 .toList(),
@@ -593,34 +646,36 @@ class _PhotoGallery extends StatelessWidget {
       );
     }
 
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+    return Column(
       children: paths.map((String path) {
-        return Stack(
-          children: <Widget>[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: _ProfileImage(path: path),
-            ),
-            if (editable)
-              Positioned(
-                top: 6,
-                right: 6,
-                child: Material(
-                  color: Colors.black54,
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => onRemove(path),
-                    child: const Padding(
-                      padding: EdgeInsets.all(6),
-                      child: Icon(Icons.close, size: 16, color: Colors.white),
+        final colorScheme = Theme.of(context).colorScheme;
+        return Padding(
+          padding: EdgeInsets.only(bottom: path == paths.last ? 0 : 12),
+          child: SizedBox(
+            width: double.infinity,
+            child: Stack(
+              children: <Widget>[
+                _ProfileImage(path: path),
+                if (editable)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Material(
+                      color: colorScheme.scrim.withValues(alpha: 0.66),
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () => onRemove(path),
+                        child: const Padding(
+                          padding: EdgeInsets.all(6),
+                          child: Icon(Icons.close, size: 16, color: Colors.white),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-          ],
+              ],
+            ),
+          ),
         );
       }).toList(),
     );
@@ -634,81 +689,15 @@ class _ProfileImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TappableImage(
+    final colorScheme = Theme.of(context).colorScheme;
+    return AdaptiveTappableImage(
       path: path,
-      width: 112,
-      height: 146,
-      borderRadius: 18,
+      maxWidth: double.infinity,
+      fallbackHeight: 240,
+      borderRadius: 0,
       placeholderIcon: Icons.person_outline,
-      placeholderColor: const Color(0xFFE4F2EE),
-      iconColor: const Color(0xFF44665B),
-    );
-  }
-}
-
-class _ProfileTopBar extends StatelessWidget {
-  const _ProfileTopBar({
-    required this.caption,
-    required this.isEditing,
-    required this.isSaving,
-    required this.onCancel,
-    required this.onPrimaryAction,
-  });
-
-  final String caption;
-  final bool isEditing;
-  final bool isSaving;
-  final Future<void> Function() onCancel;
-  final VoidCallback onPrimaryAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12, bottom: 20),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.68),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFE3DDD2)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  caption,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF6D7A74),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              if (isEditing)
-                Padding(
-                  padding: const EdgeInsets.only(right: 10),
-                  child: TextButton(
-                    onPressed: isSaving ? null : onCancel,
-                    child: const Text('取消'),
-                  ),
-                ),
-              SizedBox(
-                width: 120,
-                child: FilledButton(
-                  onPressed: isSaving ? null : onPrimaryAction,
-                  child: isSaving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(isEditing ? '保存' : '编辑'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      placeholderColor: colorScheme.secondaryContainer,
+      iconColor: colorScheme.onSecondaryContainer,
     );
   }
 }
@@ -720,21 +709,10 @@ class _ProfileSectionFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.58),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: const Color(0xFFE2DBCF)),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
+    return ColoredBox(
+      color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 2, 18, 6),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
         child: child,
       ),
     );

@@ -97,8 +97,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   Future<void> _deleteItem(FavoriteItem item) async {
     await _database.deleteFavorite(item.id);
-    if (item.localImagePath.isNotEmpty) {
-      await _imageService.deleteIfExists(item.localImagePath);
+    for (final path in item.imagePaths.toSet()) {
+      await _imageService.deleteIfExists(path);
     }
     await _loadFavorites();
   }
@@ -405,7 +405,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
       if (!categoryMatched) {
         return false;
       }
-      if (_onlyWithImages && item.localImagePath.trim().isEmpty) {
+      if (_onlyWithImages && !item.hasImages) {
         return false;
       }
       if (keyword.isEmpty) {
@@ -491,13 +491,14 @@ class _FavoriteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: Colors.white.withValues(alpha: 0.82),
+      color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.92),
       borderRadius: BorderRadius.circular(26),
       child: InkWell(
         borderRadius: BorderRadius.circular(26),
         onTap: onOpen,
-        splashColor: const Color(0xFF16302B).withValues(alpha: 0.06),
+        splashColor: colorScheme.primary.withValues(alpha: 0.08),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -519,10 +520,16 @@ class _FavoriteCard extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE9EFE6),
+                  color: colorScheme.secondaryContainer,
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text(item.category.isEmpty ? '未分类' : item.category),
+                child: Text(
+                  item.category.isEmpty ? '未分类' : item.category,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSecondaryContainer,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               if (item.body.trim().isNotEmpty) ...<Widget>[
                 const SizedBox(height: 10),
@@ -590,19 +597,23 @@ class _FavoriteCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (item.localImagePath.trim().isNotEmpty) {
-      return _AdaptiveFavoriteImage(path: item.localImagePath);
+    if (item.imagePaths.isNotEmpty) {
+      return _AdaptiveFavoriteImage(path: item.primaryImagePath);
     }
 
     final previewHeight = 140.0 + (item.title.length % 4) * 18.0;
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       constraints: BoxConstraints(minHeight: previewHeight),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: <Color>[Color(0xFFE9E0CF), Color(0xFFD7E6DE)],
+        gradient: LinearGradient(
+          colors: <Color>[
+            colorScheme.secondaryContainer,
+            colorScheme.tertiaryContainer,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -614,7 +625,7 @@ class _FavoriteCover extends StatelessWidget {
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.w800,
             height: 1.2,
-            color: const Color(0xFF1D2F2A),
+            color: colorScheme.onSecondaryContainer,
           ),
         ),
       ),

@@ -1,17 +1,24 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import '../services/import_export_service.dart';
-import '../services/managed_image_service.dart';
 import '../widgets/reveal_motion.dart';
-import 'favorites_page.dart';
 import 'profile_page.dart';
+import 'records_page.dart';
 import 'settings_page.dart';
-import 'thoughts_page.dart';
 
 /// 应用主壳层，负责底部导航与个人页侧边栏。
 class AppShellPage extends StatefulWidget {
-  const AppShellPage({super.key});
+  const AppShellPage({
+    super.key,
+    required this.themeMode,
+    required this.onThemeModeChanged,
+  });
+
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
   @override
   State<AppShellPage> createState() => _AppShellPageState();
@@ -20,13 +27,19 @@ class AppShellPage extends StatefulWidget {
 class _AppShellPageState extends State<AppShellPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ImportExportService _importExportService = ImportExportService.instance;
-  final ManagedImageService _imageService = ManagedImageService.instance;
+  final ProfilePageController _profilePageController = ProfilePageController();
 
   int _currentIndex = 0;
   int _refreshSeed = 0;
   bool _isBusy = false;
 
-  bool get _showProfileDrawer => _currentIndex == 2;
+  bool get _showProfileDrawer => _currentIndex == 1;
+
+  @override
+  void dispose() {
+    _profilePageController.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleExport() async {
     final confirmed = await _confirmAction(
@@ -38,24 +51,48 @@ class _AppShellPageState extends State<AppShellPage> {
       return;
     }
 
-    await _runBusyAction(() async {
-      final path = await _importExportService.exportAllData();
-      _showMessage(kIsWeb ? path : '数据已导出到: $path');
-    });
+    final path = await _runProgressAction<String>(
+      title: '正在导出 ZIP',
+      initialMessage: '准备导出数据',
+      action: (ImportExportProgressCallback reportProgress) {
+        return _importExportService.exportAllData(onProgress: reportProgress);
+      },
+    );
+    if (path == null) {
+      return;
+    }
+    _showMessage(kIsWeb ? path : '数据已导出到: $path');
   }
 
   Future<void> _handleImport() async {
-    await _runBusyAction(() async {
-      final importPath = await _importExportService.importFromPicker();
-      if (importPath == null) {
-        _showMessage('已取消导入');
-        return;
-      }
-      setState(() {
-        _refreshSeed++;
-      });
-      _showMessage('导入完成: $importPath');
+    if (_isBusy) {
+      return;
+    }
+
+    final source = await _importExportService.pickImportSource();
+    if (source == null) {
+      _showMessage('已取消导入');
+      return;
+    }
+
+    final importPath = await _runProgressAction<String>(
+      title: '正在导入 ZIP',
+      initialMessage: '准备恢复本地数据',
+      action: (ImportExportProgressCallback reportProgress) async {
+        await _importExportService.importPickedSource(
+          source,
+          onProgress: reportProgress,
+        );
+        return source.path ?? source.name;
+      },
+    );
+    if (importPath == null) {
+      return;
+    }
+    setState(() {
+      _refreshSeed++;
     });
+    _showMessage('导入完成: $importPath');
   }
 
   Future<void> _handleClearData() async {
@@ -76,14 +113,6 @@ class _AppShellPageState extends State<AppShellPage> {
       });
       _showMessage('本地数据已清空');
     });
-  }
-
-  Future<int> _handleCleanupUnusedImages() async {
-    var deletedCount = 0;
-    await _runBusyAction(() async {
-      deletedCount = await _imageService.cleanupUnusedImages();
-    });
-    return deletedCount;
   }
 
   Future<bool> _confirmAction({
@@ -139,7 +168,6 @@ class _AppShellPageState extends State<AppShellPage> {
           onExport: _handleExport,
           onImport: _handleImport,
           onClearData: _handleClearData,
-          onCleanupUnusedImages: _handleCleanupUnusedImages,
         ),
       ),
     );
@@ -166,6 +194,94 @@ class _AppShellPageState extends State<AppShellPage> {
     }
   }
 
+  Future<T?> _runProgressAction<T>({
+    required String title,
+    required String initialMessage,
+    required Future<T> Function(ImportExportProgressCallback reportProgress)
+    action,
+  }) async {
+    if (_isBusy) {
+      return null;
+    }
+
+    final progressNotifier = ValueNotifier<_ProgressState>(
+      _ProgressState(progress: 0, message: initialMessage),
+    );
+
+    setState(() {
+      _isBusy = true;
+    });
+
+    final navigator = Navigator.of(context, rootNavigator: true);
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        useRootNavigator: true,
+        builder: (BuildContext context) {
+          return PopScope(
+            canPop: false,
+            child: ValueListenableBuilder<_ProgressState>(
+              valueListenable: progressNotifier,
+              builder: (
+                BuildContext context,
+                _ProgressState state,
+                Widget? child,
+              ) {
+                return AlertDialog(
+                  title: Text(title),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      LinearProgressIndicator(value: state.progress),
+                      const SizedBox(height: 14),
+                      Text(state.message),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(state.progress * 100).round()}%',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    await Future<void>.delayed(const Duration(milliseconds: 16));
+
+    try {
+      final result = await action((double progress, String message) {
+        progressNotifier.value = _ProgressState(
+          progress: progress,
+          message: message,
+        );
+      });
+      progressNotifier.value = const _ProgressState(
+        progress: 1,
+        message: '操作完成',
+      );
+      return result;
+    } catch (error) {
+      _showMessage('操作失败: $error');
+      return null;
+    } finally {
+      if (navigator.mounted && navigator.canPop()) {
+        navigator.pop();
+      }
+      progressNotifier.dispose();
+      if (mounted) {
+        setState(() {
+          _isBusy = false;
+        });
+      }
+    }
+  }
+
   void _showMessage(String message) {
     if (!mounted) {
       return;
@@ -177,18 +293,24 @@ class _AppShellPageState extends State<AppShellPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final pages = <Widget>[
-      ThoughtsPage(refreshSeed: _refreshSeed),
-      FavoritesPage(refreshSeed: _refreshSeed),
-      ProfilePage(refreshSeed: _refreshSeed),
+      RecordsPage(refreshSeed: _refreshSeed),
+      ProfilePage(
+        refreshSeed: _refreshSeed,
+        controller: _profilePageController,
+      ),
     ];
 
     return Stack(
       children: <Widget>[
         DecoratedBox(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: <Color>[Color(0xFFF3F1EB), Color(0xFFEEE8DE)],
+              colors: isDark
+                  ? const <Color>[Color(0xFF101614), Color(0xFF1A221F)]
+                  : const <Color>[Color(0xFFF3F1EB), Color(0xFFEEE8DE)],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -204,7 +326,10 @@ class _AppShellPageState extends State<AppShellPage> {
                     height: 280,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFFBFCFC8).withValues(alpha: 0.26),
+                      color: (isDark
+                              ? const Color(0xFF355148)
+                              : const Color(0xFFBFCFC8))
+                          .withValues(alpha: isDark ? 0.22 : 0.26),
                     ),
                   ),
                 ),
@@ -218,7 +343,10 @@ class _AppShellPageState extends State<AppShellPage> {
                     height: 220,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFFDCCFB9).withValues(alpha: 0.24),
+                      color: (isDark
+                              ? const Color(0xFF4D3E2D)
+                              : const Color(0xFFDCCFB9))
+                          .withValues(alpha: isDark ? 0.18 : 0.24),
                     ),
                   ),
                 ),
@@ -226,42 +354,87 @@ class _AppShellPageState extends State<AppShellPage> {
               Scaffold(
                 key: _scaffoldKey,
                 backgroundColor: Colors.transparent,
-                appBar: AppBar(
-                  automaticallyImplyLeading: false,
-                  leading: _showProfileDrawer
-                      ? IconButton(
+                appBar: _showProfileDrawer
+                    ? AppBar(
+                        automaticallyImplyLeading: false,
+                        leading: IconButton(
                           icon: const Icon(Icons.menu),
                           onPressed: () =>
                               _scaffoldKey.currentState?.openDrawer(),
-                        )
-                      : null,
-                  title: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 280),
-                    transitionBuilder:
-                        (Widget child, Animation<double> animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0, 0.18),
-                                end: Offset.zero,
-                              ).animate(animation),
-                              child: child,
-                            ),
-                          );
-                        },
-                    child: Text(
-                      _titles[_currentIndex],
-                      key: ValueKey<int>(_currentIndex),
-                    ),
-                  ),
-                ),
+                        ),
+                        title: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 280),
+                          transitionBuilder:
+                              (Widget child, Animation<double> animation) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: SlideTransition(
+                                    position: Tween<Offset>(
+                                      begin: const Offset(0, 0.18),
+                                      end: Offset.zero,
+                                    ).animate(animation),
+                                    child: child,
+                                  ),
+                                );
+                              },
+                          child: Text(
+                            _titles[_currentIndex],
+                            key: ValueKey<int>(_currentIndex),
+                          ),
+                        ),
+                        actions: <Widget>[
+                          AnimatedBuilder(
+                            animation: _profilePageController,
+                            builder: (BuildContext context, Widget? child) {
+                              final isEditing = _profilePageController.isEditing;
+                              final isSaving = _profilePageController.isSaving;
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  if (isEditing)
+                                    TextButton(
+                                      onPressed: isSaving
+                                          ? null
+                                          : _profilePageController.triggerCancel,
+                                      child: const Text('取消'),
+                                    ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 12),
+                                    child: FilledButton(
+                                      onPressed: isSaving
+                                          ? null
+                                          : _profilePageController.triggerPrimaryAction,
+                                      style: FilledButton.styleFrom(
+                                        minimumSize: const Size(76, 36),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 6,
+                                        ),
+                                      ),
+                                      child: isSaving
+                                          ? const SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : Text(isEditing ? '保存' : '编辑'),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
+                      )
+                    : null,
                 drawer: _showProfileDrawer
                     ? Drawer(
                         child: SafeArea(
                           child: Column(
                             children: <Widget>[
-                              const Padding(
+                              Padding(
                                 padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
                                 child: Align(
                                   alignment: Alignment.centerLeft,
@@ -278,12 +451,58 @@ class _AppShellPageState extends State<AppShellPage> {
                                       ),
                                       SizedBox(height: 8),
                                       Text(
-                                        '设置、备份和清理都从个人入口进入，主导航只保留记录本身。',
+                                        '主题、设置、备份和清理都从这里进入，主导航只保留记录本身。',
                                         style: TextStyle(height: 1.5),
                                       ),
                                     ],
                                   ),
                                 ),
+                              ),
+                              const Divider(height: 1),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    '主题',
+                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                                    child: SizedBox(
+                                      width: double.infinity,
+                                      child: SegmentedButton<ThemeMode>(
+                                        showSelectedIcon: false,
+                                        segments: const <ButtonSegment<ThemeMode>>[
+                                          ButtonSegment<ThemeMode>(
+                                            value: ThemeMode.system,
+                                            label: Text('系统'),
+                                            icon: Icon(Icons.brightness_auto_outlined),
+                                          ),
+                                          ButtonSegment<ThemeMode>(
+                                            value: ThemeMode.light,
+                                            label: Text('亮色'),
+                                            icon: Icon(Icons.light_mode_outlined),
+                                          ),
+                                          ButtonSegment<ThemeMode>(
+                                            value: ThemeMode.dark,
+                                            label: Text('暗色'),
+                                            icon: Icon(Icons.dark_mode_outlined),
+                                          ),
+                                        ],
+                                        selected: <ThemeMode>{widget.themeMode},
+                                        onSelectionChanged: (Set<ThemeMode> selection) {
+                                          if (selection.isEmpty) {
+                                            return;
+                                          }
+                                          _handleThemeModeChanged(selection.first);
+                                        },
+                                      ),
+                                    ),
                               ),
                               const Divider(height: 1),
                               ListTile(
@@ -304,31 +523,13 @@ class _AppShellPageState extends State<AppShellPage> {
                   duration: const Duration(milliseconds: 320),
                   child: IndexedStack(index: _currentIndex, children: pages),
                 ),
-                bottomNavigationBar: NavigationBar(
-                  selectedIndex: _currentIndex,
-                  indicatorColor: const Color(0xFFDCCFB9),
-                  onDestinationSelected: (int index) {
+                bottomNavigationBar: _CompactTextNavigationBar(
+                  currentIndex: _currentIndex,
+                  onSelected: (int index) {
                     setState(() {
                       _currentIndex = index;
                     });
                   },
-                  destinations: const <NavigationDestination>[
-                    NavigationDestination(
-                      icon: Icon(Icons.lightbulb_outline),
-                      selectedIcon: Icon(Icons.lightbulb),
-                      label: '想法',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.collections_bookmark_outlined),
-                      selectedIcon: Icon(Icons.collections_bookmark),
-                      label: '收藏',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.badge_outlined),
-                      selectedIcon: Icon(Icons.badge),
-                      label: '个人',
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -339,15 +540,81 @@ class _AppShellPageState extends State<AppShellPage> {
           child: AnimatedOpacity(
             duration: const Duration(milliseconds: 220),
             opacity: _isBusy ? 1 : 0,
-            child: const ColoredBox(
-              color: Colors.black26,
-              child: Center(child: CircularProgressIndicator()),
+            child: ColoredBox(
+              color: colorScheme.scrim.withValues(alpha: isDark ? 0.56 : 0.18),
+              child: const Center(child: CircularProgressIndicator()),
             ),
           ),
         ),
       ],
     );
   }
+
+  void _handleThemeModeChanged(ThemeMode? value) {
+    if (value == null || value == widget.themeMode) {
+      return;
+    }
+    widget.onThemeModeChanged(value);
+  }
 }
 
-const List<String> _titles = <String>['想法记录', '收藏内容', '个人档案'];
+const List<String> _titles = <String>['记录', '个人档案'];
+
+class _ProgressState {
+  const _ProgressState({required this.progress, required this.message});
+
+  final double progress;
+  final String message;
+}
+
+class _CompactTextNavigationBar extends StatelessWidget {
+  const _CompactTextNavigationBar({
+    required this.currentIndex,
+    required this.onSelected,
+  });
+
+  final int currentIndex;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final labels = <String>['记录', '个人'];
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).canvasColor,
+        border: Border(
+          top: BorderSide(color: colorScheme.outlineVariant),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 46,
+          child: Row(
+            children: List<Widget>.generate(labels.length, (int index) {
+              final isSelected = currentIndex == index;
+              return Expanded(
+                child: InkWell(
+                  onTap: () => onSelected(index),
+                  child: Center(
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 180),
+                      style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                        color: isSelected
+                            ? colorScheme.onSurface
+                            : colorScheme.onSurfaceVariant,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                      ),
+                      child: Text(labels[index]),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+}

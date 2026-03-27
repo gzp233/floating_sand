@@ -15,7 +15,7 @@ extension GetThoughtNoteCollection on Isar {
 
 const ThoughtNoteSchema = CollectionSchema(
   name: r'ThoughtNote',
-  id: 8308061675025571,
+  id: 8308061675025571840,
   properties: {
     r'category': PropertySchema(
       id: 0,
@@ -27,29 +27,34 @@ const ThoughtNoteSchema = CollectionSchema(
       name: r'createdAt',
       type: IsarType.dateTime,
     ),
-    r'localImagePath': PropertySchema(
+    r'imagePaths': PropertySchema(
       id: 2,
+      name: r'imagePaths',
+      type: IsarType.stringList,
+    ),
+    r'localImagePath': PropertySchema(
+      id: 3,
       name: r'localImagePath',
       type: IsarType.string,
     ),
     r'overview': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'overview',
       type: IsarType.string,
     ),
     r'steps': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'steps',
       type: IsarType.objectList,
       target: r'ThoughtStep',
     ),
     r'title': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'title',
       type: IsarType.string,
     ),
     r'updatedAt': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -75,6 +80,13 @@ int _thoughtNoteEstimateSize(
 ) {
   var bytesCount = offsets.last;
   bytesCount += 3 + object.category.length * 3;
+  bytesCount += 3 + object.imagePaths.length * 3;
+  {
+    for (var i = 0; i < object.imagePaths.length; i++) {
+      final value = object.imagePaths[i];
+      bytesCount += value.length * 3;
+    }
+  }
   bytesCount += 3 + object.localImagePath.length * 3;
   bytesCount += 3 + object.overview.length * 3;
   bytesCount += 3 + object.steps.length * 3;
@@ -97,16 +109,17 @@ void _thoughtNoteSerialize(
 ) {
   writer.writeString(offsets[0], object.category);
   writer.writeDateTime(offsets[1], object.createdAt);
-  writer.writeString(offsets[2], object.localImagePath);
-  writer.writeString(offsets[3], object.overview);
+  writer.writeStringList(offsets[2], object.imagePaths);
+  writer.writeString(offsets[3], object.localImagePath);
+  writer.writeString(offsets[4], object.overview);
   writer.writeObjectList<ThoughtStep>(
-    offsets[4],
+    offsets[5],
     allOffsets,
     ThoughtStepSchema.serialize,
     object.steps,
   );
-  writer.writeString(offsets[5], object.title);
-  writer.writeDateTime(offsets[6], object.updatedAt);
+  writer.writeString(offsets[6], object.title);
+  writer.writeDateTime(offsets[7], object.updatedAt);
 }
 
 ThoughtNote _thoughtNoteDeserialize(
@@ -118,19 +131,20 @@ ThoughtNote _thoughtNoteDeserialize(
   final object = ThoughtNote(
     category: reader.readStringOrNull(offsets[0]) ?? '',
     id: id,
-    localImagePath: reader.readStringOrNull(offsets[2]) ?? '',
-    overview: reader.readStringOrNull(offsets[3]) ?? '',
-    title: reader.readStringOrNull(offsets[5]) ?? '',
+    imagePaths: reader.readStringList(offsets[2]) ?? const <String>[],
+    localImagePath: reader.readStringOrNull(offsets[3]) ?? '',
+    overview: reader.readStringOrNull(offsets[4]) ?? '',
+    title: reader.readStringOrNull(offsets[6]) ?? '',
   );
   object.createdAt = reader.readDateTime(offsets[1]);
   object.steps = reader.readObjectList<ThoughtStep>(
-        offsets[4],
+        offsets[5],
         ThoughtStepSchema.deserialize,
         allOffsets,
         ThoughtStep(),
       ) ??
       [];
-  object.updatedAt = reader.readDateTime(offsets[6]);
+  object.updatedAt = reader.readDateTime(offsets[7]);
   return object;
 }
 
@@ -146,10 +160,12 @@ P _thoughtNoteDeserializeProp<P>(
     case 1:
       return (reader.readDateTime(offset)) as P;
     case 2:
-      return (reader.readStringOrNull(offset) ?? '') as P;
+      return (reader.readStringList(offset) ?? const <String>[]) as P;
     case 3:
       return (reader.readStringOrNull(offset) ?? '') as P;
     case 4:
+      return (reader.readStringOrNull(offset) ?? '') as P;
+    case 5:
       return (reader.readObjectList<ThoughtStep>(
             offset,
             ThoughtStepSchema.deserialize,
@@ -157,9 +173,9 @@ P _thoughtNoteDeserializeProp<P>(
             ThoughtStep(),
           ) ??
           []) as P;
-    case 5:
-      return (reader.readStringOrNull(offset) ?? '') as P;
     case 6:
+      return (reader.readStringOrNull(offset) ?? '') as P;
+    case 7:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -500,6 +516,231 @@ extension ThoughtNoteQueryFilter
         upper: upper,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'imagePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'imagePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'imagePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'imagePaths',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'imagePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'imagePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'imagePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'imagePaths',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'imagePaths',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'imagePaths',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'imagePaths',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'imagePaths',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'imagePaths',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'imagePaths',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'imagePaths',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ThoughtNote, ThoughtNote, QAfterFilterCondition>
+      imagePathsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'imagePaths',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
     });
   }
 
@@ -1243,6 +1484,12 @@ extension ThoughtNoteQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ThoughtNote, ThoughtNote, QDistinct> distinctByImagePaths() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'imagePaths');
+    });
+  }
+
   QueryBuilder<ThoughtNote, ThoughtNote, QDistinct> distinctByLocalImagePath(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -1292,6 +1539,13 @@ extension ThoughtNoteQueryProperty
     });
   }
 
+  QueryBuilder<ThoughtNote, List<String>, QQueryOperations>
+      imagePathsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'imagePaths');
+    });
+  }
+
   QueryBuilder<ThoughtNote, String, QQueryOperations> localImagePathProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'localImagePath');
@@ -1333,7 +1587,7 @@ extension ThoughtNoteQueryProperty
 
 const ThoughtStepSchema = Schema(
   name: r'ThoughtStep',
-  id: 2175062532346753,
+  id: 2175062532346753792,
   properties: {
     r'detail': PropertySchema(
       id: 0,

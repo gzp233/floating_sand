@@ -20,6 +20,7 @@ class SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
     final trailingWidgets = trailing == null ? const <Widget>[] : <Widget>[trailing!];
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24),
@@ -49,7 +50,7 @@ class SectionCard extends StatelessWidget {
                         title,
                         style: textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF16302B),
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       if (subtitle != null) ...<Widget>[
@@ -57,7 +58,7 @@ class SectionCard extends StatelessWidget {
                         Text(
                           subtitle!,
                           style: textTheme.bodySmall?.copyWith(
-                            color: const Color(0xFF64716C),
+                            color: colorScheme.onSurfaceVariant,
                             height: 1.5,
                           ),
                         ),

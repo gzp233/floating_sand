@@ -16,6 +16,6 @@ void main() {
     await tester.pumpWidget(const PersonalRecordApp());
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(find.text('想法记录'), findsWidgets);
+    expect(find.text('记录'), findsWidgets);
   });
 }

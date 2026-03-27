@@ -20,6 +20,7 @@ class HorizontalChoiceFilters extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -28,14 +29,16 @@ class HorizontalChoiceFilters extends StatelessWidget {
             Text(
               title,
               style: theme.labelLarge?.copyWith(
-                color: const Color(0xFF61706A),
+                color: colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(width: 8),
             Text(
               '${options.length} 项',
-              style: theme.bodySmall?.copyWith(color: const Color(0xFF83908B)),
+              style: theme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.82),
+              ),
             ),
           ],
         ),

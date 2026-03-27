@@ -15,7 +15,7 @@ extension GetFavoriteItemCollection on Isar {
 
 const FavoriteItemSchema = CollectionSchema(
   name: r'FavoriteItem',
-  id: 8773120788250692,
+  id: 8773120788250692608,
   properties: {
     r'body': PropertySchema(
       id: 0,
@@ -32,28 +32,33 @@ const FavoriteItemSchema = CollectionSchema(
       name: r'createdAt',
       type: IsarType.dateTime,
     ),
-    r'localImagePath': PropertySchema(
+    r'imagePaths': PropertySchema(
       id: 3,
+      name: r'imagePaths',
+      type: IsarType.stringList,
+    ),
+    r'localImagePath': PropertySchema(
+      id: 4,
       name: r'localImagePath',
       type: IsarType.string,
     ),
     r'note': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'note',
       type: IsarType.string,
     ),
     r'referenceUrl': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'referenceUrl',
       type: IsarType.string,
     ),
     r'title': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'title',
       type: IsarType.string,
     ),
     r'updatedAt': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -80,6 +85,13 @@ int _favoriteItemEstimateSize(
   var bytesCount = offsets.last;
   bytesCount += 3 + object.body.length * 3;
   bytesCount += 3 + object.category.length * 3;
+  bytesCount += 3 + object.imagePaths.length * 3;
+  {
+    for (var i = 0; i < object.imagePaths.length; i++) {
+      final value = object.imagePaths[i];
+      bytesCount += value.length * 3;
+    }
+  }
   bytesCount += 3 + object.localImagePath.length * 3;
   bytesCount += 3 + object.note.length * 3;
   bytesCount += 3 + object.referenceUrl.length * 3;
@@ -96,11 +108,12 @@ void _favoriteItemSerialize(
   writer.writeString(offsets[0], object.body);
   writer.writeString(offsets[1], object.category);
   writer.writeDateTime(offsets[2], object.createdAt);
-  writer.writeString(offsets[3], object.localImagePath);
-  writer.writeString(offsets[4], object.note);
-  writer.writeString(offsets[5], object.referenceUrl);
-  writer.writeString(offsets[6], object.title);
-  writer.writeDateTime(offsets[7], object.updatedAt);
+  writer.writeStringList(offsets[3], object.imagePaths);
+  writer.writeString(offsets[4], object.localImagePath);
+  writer.writeString(offsets[5], object.note);
+  writer.writeString(offsets[6], object.referenceUrl);
+  writer.writeString(offsets[7], object.title);
+  writer.writeDateTime(offsets[8], object.updatedAt);
 }
 
 FavoriteItem _favoriteItemDeserialize(
@@ -113,13 +126,14 @@ FavoriteItem _favoriteItemDeserialize(
     body: reader.readStringOrNull(offsets[0]) ?? '',
     category: reader.readStringOrNull(offsets[1]) ?? '',
     id: id,
-    localImagePath: reader.readStringOrNull(offsets[3]) ?? '',
-    note: reader.readStringOrNull(offsets[4]) ?? '',
-    referenceUrl: reader.readStringOrNull(offsets[5]) ?? '',
-    title: reader.readStringOrNull(offsets[6]) ?? '',
+    imagePaths: reader.readStringList(offsets[3]) ?? const <String>[],
+    localImagePath: reader.readStringOrNull(offsets[4]) ?? '',
+    note: reader.readStringOrNull(offsets[5]) ?? '',
+    referenceUrl: reader.readStringOrNull(offsets[6]) ?? '',
+    title: reader.readStringOrNull(offsets[7]) ?? '',
   );
   object.createdAt = reader.readDateTime(offsets[2]);
-  object.updatedAt = reader.readDateTime(offsets[7]);
+  object.updatedAt = reader.readDateTime(offsets[8]);
   return object;
 }
 
@@ -137,7 +151,7 @@ P _favoriteItemDeserializeProp<P>(
     case 2:
       return (reader.readDateTime(offset)) as P;
     case 3:
-      return (reader.readStringOrNull(offset) ?? '') as P;
+      return (reader.readStringList(offset) ?? const <String>[]) as P;
     case 4:
       return (reader.readStringOrNull(offset) ?? '') as P;
     case 5:
@@ -145,6 +159,8 @@ P _favoriteItemDeserializeProp<P>(
     case 6:
       return (reader.readStringOrNull(offset) ?? '') as P;
     case 7:
+      return (reader.readStringOrNull(offset) ?? '') as P;
+    case 8:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -621,6 +637,231 @@ extension FavoriteItemQueryFilter
         upper: upper,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'imagePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'imagePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'imagePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'imagePaths',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'imagePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'imagePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'imagePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'imagePaths',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'imagePaths',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'imagePaths',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'imagePaths',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'imagePaths',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'imagePaths',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'imagePaths',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'imagePaths',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<FavoriteItem, FavoriteItem, QAfterFilterCondition>
+      imagePathsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'imagePaths',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
     });
   }
 
@@ -1465,6 +1706,12 @@ extension FavoriteItemQueryWhereDistinct
     });
   }
 
+  QueryBuilder<FavoriteItem, FavoriteItem, QDistinct> distinctByImagePaths() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'imagePaths');
+    });
+  }
+
   QueryBuilder<FavoriteItem, FavoriteItem, QDistinct> distinctByLocalImagePath(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -1524,6 +1771,13 @@ extension FavoriteItemQueryProperty
   QueryBuilder<FavoriteItem, DateTime, QQueryOperations> createdAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'createdAt');
+    });
+  }
+
+  QueryBuilder<FavoriteItem, List<String>, QQueryOperations>
+      imagePathsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'imagePaths');
     });
   }
 
