@@ -237,6 +237,122 @@ class TappableImage extends StatelessWidget {
   }
 }
 
+/// 按图片原始比例自适应高度，适合详情页大图或列表里的自然比例图片。
+class AdaptiveTappableImage extends StatefulWidget {
+  const AdaptiveTappableImage({
+    super.key,
+    required this.path,
+    required this.borderRadius,
+    this.maxWidth,
+    this.fallbackHeight = 180,
+    this.fit = BoxFit.cover,
+    this.placeholderIcon = Icons.image_outlined,
+    this.placeholderColor = const Color(0xFFE7EEE8),
+    this.iconColor = const Color(0xFF55716A),
+    this.previewEnabled = true,
+  });
+
+  final String path;
+  final double borderRadius;
+  final double? maxWidth;
+  final double fallbackHeight;
+  final BoxFit fit;
+  final IconData placeholderIcon;
+  final Color placeholderColor;
+  final Color iconColor;
+  final bool previewEnabled;
+
+  @override
+  State<AdaptiveTappableImage> createState() => _AdaptiveTappableImageState();
+}
+
+class _AdaptiveTappableImageState extends State<AdaptiveTappableImage> {
+  ImageStream? _imageStream;
+  ImageStreamListener? _listener;
+  double? _aspectRatio;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveImageSize();
+  }
+
+  @override
+  void didUpdateWidget(covariant AdaptiveTappableImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.path != widget.path) {
+      _aspectRatio = null;
+      _detachListener();
+      _resolveImageSize();
+    }
+  }
+
+  @override
+  void dispose() {
+    _detachListener();
+    super.dispose();
+  }
+
+  void _resolveImageSize() {
+    final provider = imageProviderFromPath(widget.path);
+    if (provider == null) {
+      return;
+    }
+    final stream = provider.resolve(ImageConfiguration.empty);
+    _listener = ImageStreamListener((ImageInfo info, bool synchronousCall) {
+      final width = info.image.width.toDouble();
+      final height = info.image.height.toDouble();
+      if (!mounted || width <= 0 || height <= 0) {
+        return;
+      }
+      setState(() {
+        _aspectRatio = width / height;
+      });
+      _detachListener();
+    });
+    _imageStream = stream;
+    stream.addListener(_listener!);
+  }
+
+  void _detachListener() {
+    final stream = _imageStream;
+    final listener = _listener;
+    if (stream != null && listener != null) {
+      stream.removeListener(listener);
+    }
+    _imageStream = null;
+    _listener = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final availableWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final resolvedWidth = widget.maxWidth == null
+            ? availableWidth
+            : widget.maxWidth!.clamp(0.0, availableWidth).toDouble();
+        final resolvedHeight = _aspectRatio == null
+            ? widget.fallbackHeight
+            : resolvedWidth / _aspectRatio!;
+        return TappableImage(
+          path: widget.path,
+          width: resolvedWidth,
+          height: resolvedHeight,
+          borderRadius: widget.borderRadius,
+          fit: widget.fit,
+          placeholderIcon: widget.placeholderIcon,
+          placeholderColor: widget.placeholderColor,
+          iconColor: widget.iconColor,
+          previewEnabled: widget.previewEnabled,
+        );
+      },
+    );
+  }
+}
+
 class _ImagePlaceholder extends StatelessWidget {
   const _ImagePlaceholder({
     required this.icon,

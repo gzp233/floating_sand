@@ -335,6 +335,52 @@ void main() {
       );
     });
 
+    test('imports zip payload from raw bytes', () async {
+      final archive = Archive();
+      final payload = <String, dynamic>{
+        'version': 1,
+        'profile': <String, dynamic>{
+          'nickname': '字节导入',
+          'bio': '直接用内存字节导入',
+          'photoArchivePaths': <String>[],
+          'photoPaths': <String>[],
+          'personality': <String, dynamic>{
+            'summary': '',
+            'values': '',
+            'tags': <String>[],
+          },
+          'hobbies': <String>[],
+          'customModules': <Map<String, dynamic>>[],
+          'updatedAt': DateTime(2024, 3, 1).toIso8601String(),
+        },
+        'categories': <Map<String, dynamic>>[],
+        'favorites': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 1,
+            'title': '字节收藏',
+            'category': '',
+            'body': '来自 bytes',
+            'note': '',
+            'referenceUrl': '',
+            'localImagePath': '',
+            'createdAt': DateTime(2024, 3, 1).toIso8601String(),
+            'updatedAt': DateTime(2024, 3, 1).toIso8601String(),
+          },
+        ],
+        'thoughts': <Map<String, dynamic>>[],
+      };
+      final jsonBytes = utf8.encode(jsonEncode(payload));
+      archive.addFile(ArchiveFile('data.json', jsonBytes.length, jsonBytes));
+
+      final zipBytes = ZipEncoder().encode(archive);
+      await service.importFromZipBytes(zipBytes);
+
+      final restored = await AppDatabase.instance.dumpData();
+      expect(restored.profile, isNotNull);
+      expect(restored.profile!.nickname, '字节导入');
+      expect(restored.favorites.single.title, '字节收藏');
+    });
+
     test(
       'reuses one stored image path for duplicate archive images across modules',
       () async {

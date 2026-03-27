@@ -12,6 +12,7 @@ import '../models/favorite_item.dart';
 import '../models/person_profile.dart';
 import '../models/thought_note.dart';
 import 'app_database.dart';
+import 'export_download_helper.dart';
 import 'managed_image_service.dart';
 
 /// 负责本地 JSON 与图片的 ZIP 导出和导入。
@@ -35,11 +36,20 @@ class ImportExportService {
 
     final zipBytes = ZipEncoder().encode(archive);
 
-    final exportDirectory = await _resolveExportDirectory();
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-    final targetFile = File(
-      p.join(exportDirectory.path, 'personal_record_$timestamp.zip'),
-    );
+    final fileName = 'personal_record_$timestamp.zip';
+
+    if (kIsWeb) {
+      await saveBytesAsDownload(
+        bytes: zipBytes,
+        fileName: fileName,
+        mimeType: 'application/zip',
+      );
+      return '浏览器下载已开始：$fileName';
+    }
+
+    final exportDirectory = await _resolveExportDirectory();
+    final targetFile = File(p.join(exportDirectory.path, fileName));
     await targetFile.writeAsBytes(zipBytes, flush: true);
     return targetFile.path;
   }
@@ -49,8 +59,23 @@ class ImportExportService {
       type: FileType.custom,
       allowedExtensions: const <String>['zip'],
       dialogTitle: '选择要导入的备份 ZIP',
+      withData: kIsWeb,
     );
-    final path = result?.files.single.path;
+    final file = result?.files.single;
+    if (file == null) {
+      return null;
+    }
+
+    if (kIsWeb) {
+      final bytes = file.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        throw StateError('无法读取所选 ZIP 文件');
+      }
+      await importFromZipBytes(bytes);
+      return file.name;
+    }
+
+    final path = file.path;
     if (path == null || path.isEmpty) {
       return null;
     }
@@ -61,6 +86,10 @@ class ImportExportService {
 
   Future<void> importFromZip(File zipFile) async {
     final bytes = await zipFile.readAsBytes();
+    await importFromZipBytes(bytes);
+  }
+
+  Future<void> importFromZipBytes(List<int> bytes) async {
     final archive = ZipDecoder().decodeBytes(bytes);
     final files = archive.files
         .where((ArchiveFile file) => file.isFile)

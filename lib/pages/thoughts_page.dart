@@ -123,7 +123,7 @@ class _ThoughtsPageState extends State<ThoughtsPage> {
                     child: PageHeader(
                       eyebrow: 'THOUGHTS BOARD',
                       title: '把经验写成可执行步骤，而不是只留一句感受。',
-                      description: '每条想法围绕一个主题展开，概述负责定调，步骤负责复用，可能问题负责提前卡位。',
+                      description: '每条记录都围绕一个主题展开，回看时能先抓住结论，再顺着步骤继续接上。',
                     ),
                   ),
                   RevealMotion(
@@ -143,7 +143,9 @@ class _ThoughtsPageState extends State<ThoughtsPage> {
                                 icon: _showFilters
                                     ? Icons.filter_alt_off_outlined
                                     : Icons.filter_alt_outlined,
-                                label: _showFilters ? '收起筛选' : '筛选',
+                                label: _showFilters
+                                    ? '收起筛选$_filterCountLabel'
+                                    : '筛选$_filterCountLabel',
                                 onPressed: () {
                                   setState(() {
                                     _showFilters = !_showFilters;
@@ -371,6 +373,28 @@ class _ThoughtsPageState extends State<ThoughtsPage> {
         _selectedCategory != null ||
         _onlyWithImages ||
         _sort != _ThoughtSort.newest;
+  }
+
+  int get _activeFilterCount {
+    var count = 0;
+    if (_searchController.text.trim().isNotEmpty) {
+      count++;
+    }
+    if (_selectedCategory != null) {
+      count++;
+    }
+    if (_onlyWithImages) {
+      count++;
+    }
+    if (_sort != _ThoughtSort.newest) {
+      count++;
+    }
+    return count;
+  }
+
+  String get _filterCountLabel {
+    final count = _activeFilterCount;
+    return count == 0 ? '' : '($count)';
   }
 
   String _thoughtSortLabel(_ThoughtSort value) {
@@ -613,6 +637,7 @@ class _ThoughtPreview extends StatelessWidget {
       placeholderIcon: Icons.route_outlined,
       placeholderColor: const Color(0xFFE4F2EE),
       iconColor: const Color(0xFF115E59),
+      previewEnabled: false,
     );
   }
 }

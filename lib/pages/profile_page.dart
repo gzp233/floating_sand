@@ -385,7 +385,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           final module = _modules[index];
                           return Padding(
                             padding: EdgeInsets.only(
-                              bottom: index == _modules.length - 1 ? 0 : 18,
+                              bottom: index == _modules.length - 1 ? 0 : 28,
                             ),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 220),

@@ -142,7 +142,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     child: PageHeader(
                       eyebrow: 'CURATED ARCHIVE',
                       title: '把会反复回看的内容收进一个轻量但密度足够的收藏面。',
-                      description: '所有收藏都使用统一图文结构，双列瀑布流优先帮助你快速扫图、扫标题、扫分类。',
+                      description: '把灵感、链接和图文线索收在一起，先快速扫图和标题，再决定要不要展开细看。',
                     ),
                   ),
                   RevealMotion(
@@ -162,7 +162,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                 icon: _showFilters
                                     ? Icons.filter_alt_off_outlined
                                     : Icons.filter_alt_outlined,
-                                label: _showFilters ? '收起筛选' : '筛选',
+                                label: _showFilters
+                                    ? '收起筛选$_filterCountLabel'
+                                    : '筛选$_filterCountLabel',
                                 onPressed: () {
                                   setState(() {
                                     _showFilters = !_showFilters;
@@ -441,6 +443,28 @@ class _FavoritesPageState extends State<FavoritesPage> {
         _sort != _FavoriteSort.newest;
   }
 
+  int get _activeFilterCount {
+    var count = 0;
+    if (_searchController.text.trim().isNotEmpty) {
+      count++;
+    }
+    if (_selectedCategory != null) {
+      count++;
+    }
+    if (_onlyWithImages) {
+      count++;
+    }
+    if (_sort != _FavoriteSort.newest) {
+      count++;
+    }
+    return count;
+  }
+
+  String get _filterCountLabel {
+    final count = _activeFilterCount;
+    return count == 0 ? '' : '($count)';
+  }
+
   String _favoriteSortLabel(_FavoriteSort value) {
     return switch (value) {
       _FavoriteSort.newest => '最新',
@@ -680,6 +704,7 @@ class _AdaptiveFavoriteImageState extends State<_AdaptiveFavoriteImage> {
           borderRadius: 20,
           fit: BoxFit.cover,
           placeholderIcon: Icons.collections_outlined,
+          previewEnabled: false,
         );
       },
     );

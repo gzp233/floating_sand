@@ -3,6 +3,7 @@ import 'package:isar/isar.dart';
 
 import '../models/thought_note.dart';
 import '../services/app_database.dart';
+import '../services/managed_image_service.dart';
 import '../widgets/section_card.dart';
 import '../widgets/tappable_image.dart';
 import 'editors/thought_editor_page.dart';
@@ -19,6 +20,7 @@ class ThoughtDetailPage extends StatefulWidget {
 
 class _ThoughtDetailPageState extends State<ThoughtDetailPage> {
   final AppDatabase _database = AppDatabase.instance;
+  final ManagedImageService _imageService = ManagedImageService.instance;
 
   ThoughtNote? _note;
   bool _isLoading = true;
@@ -57,6 +59,51 @@ class _ThoughtDetailPageState extends State<ThoughtDetailPage> {
     await _loadNote();
   }
 
+  Future<void> _deleteNote() async {
+    final note = _note;
+    if (note == null) {
+      return;
+    }
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('删除想法'),
+              content: const Text('删除后将移除这条想法及其步骤图片，是否继续？'),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('取消'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('删除'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+    if (!confirmed) {
+      return;
+    }
+
+    await _database.deleteThought(note.id);
+    if (note.localImagePath.isNotEmpty) {
+      await _imageService.deleteIfExists(note.localImagePath);
+    }
+    for (final step in note.steps) {
+      if (step.imagePath.isNotEmpty) {
+        await _imageService.deleteIfExists(step.imagePath);
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+    Navigator.of(context).pop(true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final note = _note;
@@ -70,6 +117,12 @@ class _ThoughtDetailPageState extends State<ThoughtDetailPage> {
               icon: const Icon(Icons.edit_outlined),
               label: const Text('编辑'),
             ),
+          if (note != null)
+            TextButton.icon(
+              onPressed: _deleteNote,
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('删除'),
+            ),
           const SizedBox(width: 8),
         ],
       ),
@@ -79,11 +132,10 @@ class _ThoughtDetailPageState extends State<ThoughtDetailPage> {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
               children: <Widget>[
                 if (note.localImagePath.trim().isNotEmpty) ...<Widget>[
-                  TappableImage(
+                  AdaptiveTappableImage(
                     path: note.localImagePath,
-                    width: double.infinity,
-                    height: 240,
                     borderRadius: 28,
+                    fallbackHeight: 240,
                     placeholderIcon: Icons.route_outlined,
                     placeholderColor: const Color(0xFFE4F2EE),
                     iconColor: const Color(0xFF115E59),
@@ -96,13 +148,25 @@ class _ThoughtDetailPageState extends State<ThoughtDetailPage> {
                   subtitle: note.category.trim().isEmpty
                       ? '未分类'
                       : note.category.trim(),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      _ThoughtStatChip(label: '步骤 ${note.steps.length}'),
-                      _ThoughtStatChip(label: '图片 ${_countImages(note)}'),
-                      _ThoughtStatChip(label: '问题 ${_countQuestions(note)}'),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: <Widget>[
+                          _ThoughtStatChip(label: '步骤 ${note.steps.length}'),
+                          _ThoughtStatChip(label: '图片 ${_countImages(note)}'),
+                          _ThoughtStatChip(
+                            label: '问题 ${_countQuestions(note)}',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _TimeSummaryRow(
+                        createdAt: _formatDateTime(note.createdAt),
+                        updatedAt: _formatDateTime(note.updatedAt),
+                      ),
                     ],
                   ),
                 ),
@@ -158,6 +222,14 @@ class _ThoughtDetailPageState extends State<ThoughtDetailPage> {
     return note.steps
         .where((ThoughtStep step) => step.possibleQuestion.trim().isNotEmpty)
         .length;
+  }
+
+  String _formatDateTime(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '${value.year}-$month-$day $hour:$minute';
   }
 }
 
@@ -237,11 +309,10 @@ class _ThoughtStepDetail extends StatelessWidget {
           ],
           if (step.imagePath.trim().isNotEmpty) ...<Widget>[
             const SizedBox(height: 12),
-            TappableImage(
+            AdaptiveTappableImage(
               path: step.imagePath,
-              width: double.infinity,
-              height: 180,
               borderRadius: 18,
+              fallbackHeight: 180,
               placeholderIcon: Icons.image_outlined,
             ),
           ],
@@ -263,6 +334,61 @@ class _ThoughtStepDetail extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TimeSummaryRow extends StatelessWidget {
+  const _TimeSummaryRow({required this.createdAt, required this.updatedAt});
+
+  final String createdAt;
+  final String updatedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 18,
+      runSpacing: 10,
+      children: <Widget>[
+        _TimePill(label: '创建时间', value: createdAt),
+        _TimePill(label: '最近更新', value: updatedAt),
+      ],
+    );
+  }
+}
+
+class _TimePill extends StatelessWidget {
+  const _TimePill({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F2EA),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            '$label：',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: const Color(0xFF76827D),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            value,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF22342F)),
+          ),
         ],
       ),
     );

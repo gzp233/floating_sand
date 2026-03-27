@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../services/import_export_service.dart';
 import '../services/managed_image_service.dart';
@@ -28,9 +29,18 @@ class _AppShellPageState extends State<AppShellPage> {
   bool get _showProfileDrawer => _currentIndex == 2;
 
   Future<void> _handleExport() async {
+    final confirmed = await _confirmAction(
+      title: '导出 ZIP',
+      message: '会把当前档案、收藏、想法和图片打包成 ZIP 备份，是否继续？',
+      confirmLabel: '导出',
+    );
+    if (!confirmed) {
+      return;
+    }
+
     await _runBusyAction(() async {
       final path = await _importExportService.exportAllData();
-      _showMessage('数据已导出到: $path');
+      _showMessage(kIsWeb ? path : '数据已导出到: $path');
     });
   }
 
@@ -49,27 +59,12 @@ class _AppShellPageState extends State<AppShellPage> {
   }
 
   Future<void> _handleClearData() async {
-    final confirmed =
-        await showDialog<bool>(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('清空本地数据'),
-              content: const Text('这会删除档案、分类、收藏、想法和本地图片，是否继续？'),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('取消'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('清空'),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
+    final confirmed = await _confirmAction(
+      title: '清空本地数据',
+      message: '这会删除档案、分类、收藏、想法和本地图片，是否继续？',
+      confirmLabel: '清空',
+      destructive: true,
+    );
     if (!confirmed) {
       return;
     }
@@ -89,6 +84,51 @@ class _AppShellPageState extends State<AppShellPage> {
       deletedCount = await _imageService.cleanupUnusedImages();
     });
     return deletedCount;
+  }
+
+  Future<bool> _confirmAction({
+    required String title,
+    required String message,
+    required String confirmLabel,
+    bool destructive = false,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text(title),
+              content: Text(message),
+              actions: <Widget>[
+                SizedBox(
+                  width: double.infinity,
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: const Text('取消'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          style: destructive
+                              ? FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFFB33A3A),
+                                )
+                              : null,
+                          onPressed: () => Navigator.of(context).pop(true),
+                          child: Text(confirmLabel),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 
   Future<void> _openSettingsPage() async {
@@ -248,34 +288,10 @@ class _AppShellPageState extends State<AppShellPage> {
                               const Divider(height: 1),
                               ListTile(
                                 leading: const Icon(Icons.settings_outlined),
-                                title: const Text('打开设置'),
+                                title: const Text('设置'),
                                 onTap: () {
                                   Navigator.of(context).pop();
                                   _openSettingsPage();
-                                },
-                              ),
-                              ListTile(
-                                leading: const Icon(Icons.archive_outlined),
-                                title: const Text('一键导出 ZIP'),
-                                onTap: () {
-                                  Navigator.of(context).pop();
-                                  _handleExport();
-                                },
-                              ),
-                              ListTile(
-                                leading: const Icon(Icons.unarchive_outlined),
-                                title: const Text('导入备份 ZIP'),
-                                onTap: () {
-                                  Navigator.of(context).pop();
-                                  _handleImport();
-                                },
-                              ),
-                              ListTile(
-                                leading: const Icon(Icons.delete_outline),
-                                title: const Text('清空本地数据'),
-                                onTap: () {
-                                  Navigator.of(context).pop();
-                                  _handleClearData();
                                 },
                               ),
                             ],

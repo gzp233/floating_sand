@@ -59,7 +59,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (kIsWeb) {
       return _SettingsViewData(
         summary: summary,
-        storagePath: 'browser local storage',
+        storagePath: '当前浏览器的本地存储',
         managedImageCount: managedImageCount,
       );
     }
@@ -137,7 +137,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     delay: const Duration(milliseconds: 150),
                     child: SectionCard(
                       title: '导出与导入',
-                      subtitle: '导出 JSON 与图片 ZIP，导入时自动恢复本地图片路径。',
+                      subtitle: kIsWeb
+                          ? '导出 ZIP 时会直接触发浏览器下载，导入后会自动恢复本地图片引用。'
+                          : '导出 JSON 与图片 ZIP，导入时自动恢复本地图片路径。',
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
@@ -173,7 +175,43 @@ class _SettingsPageState extends State<SettingsPage> {
                               color: const Color(0xFFF7F3EC),
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: SelectableText(data.storagePath),
+                            child: kIsWeb
+                                ? Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Text(
+                                        '当前存储方式',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelLarge
+                                            ?.copyWith(
+                                              color: const Color(0xFF61706A),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        data.storagePath,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                              color: const Color(0xFF16302B),
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Web 端没有独立文件目录，刷新浏览器或清空站点数据都可能影响本地内容。',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(height: 1.6),
+                                      ),
+                                    ],
+                                  )
+                                : SelectableText(data.storagePath),
                           ),
                           const SizedBox(height: 16),
                           OutlinedButton.icon(

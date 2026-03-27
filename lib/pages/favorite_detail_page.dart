@@ -3,6 +3,7 @@ import 'package:isar/isar.dart';
 
 import '../models/favorite_item.dart';
 import '../services/app_database.dart';
+import '../services/managed_image_service.dart';
 import '../widgets/section_card.dart';
 import '../widgets/tappable_image.dart';
 import 'editors/favorite_editor_page.dart';
@@ -19,6 +20,7 @@ class FavoriteDetailPage extends StatefulWidget {
 
 class _FavoriteDetailPageState extends State<FavoriteDetailPage> {
   final AppDatabase _database = AppDatabase.instance;
+  final ManagedImageService _imageService = ManagedImageService.instance;
 
   FavoriteItem? _item;
   bool _isLoading = true;
@@ -58,6 +60,46 @@ class _FavoriteDetailPageState extends State<FavoriteDetailPage> {
     await _loadItem();
   }
 
+  Future<void> _deleteItem() async {
+    final item = _item;
+    if (item == null) {
+      return;
+    }
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('删除收藏'),
+              content: const Text('删除后将移除这条收藏及其关联图片，是否继续？'),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('取消'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('删除'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+    if (!confirmed) {
+      return;
+    }
+
+    await _database.deleteFavorite(item.id);
+    if (item.localImagePath.isNotEmpty) {
+      await _imageService.deleteIfExists(item.localImagePath);
+    }
+    if (!mounted) {
+      return;
+    }
+    Navigator.of(context).pop(true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final item = _item;
@@ -71,6 +113,12 @@ class _FavoriteDetailPageState extends State<FavoriteDetailPage> {
               icon: const Icon(Icons.edit_outlined),
               label: const Text('编辑'),
             ),
+          if (item != null)
+            TextButton.icon(
+              onPressed: _deleteItem,
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('删除'),
+            ),
           const SizedBox(width: 8),
         ],
       ),
@@ -80,11 +128,10 @@ class _FavoriteDetailPageState extends State<FavoriteDetailPage> {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
               children: <Widget>[
                 if (item.localImagePath.trim().isNotEmpty) ...<Widget>[
-                  TappableImage(
+                  AdaptiveTappableImage(
                     path: item.localImagePath,
-                    width: double.infinity,
-                    height: 240,
                     borderRadius: 28,
+                    fallbackHeight: 240,
                     placeholderIcon: Icons.collections_outlined,
                   ),
                   const SizedBox(height: 18),
@@ -95,19 +142,9 @@ class _FavoriteDetailPageState extends State<FavoriteDetailPage> {
                   subtitle: item.category.trim().isEmpty
                       ? '未分类'
                       : item.category.trim(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      _DetailMetaRow(
-                        label: '创建时间',
-                        value: _formatDateTime(item.createdAt),
-                      ),
-                      const SizedBox(height: 10),
-                      _DetailMetaRow(
-                        label: '最近更新',
-                        value: _formatDateTime(item.updatedAt),
-                      ),
-                    ],
+                  child: _TimeSummaryRow(
+                    createdAt: _formatDateTime(item.createdAt),
+                    updatedAt: _formatDateTime(item.updatedAt),
                   ),
                 ),
                 if (item.body.trim().isNotEmpty) ...<Widget>[
@@ -164,35 +201,57 @@ class _FavoriteDetailPageState extends State<FavoriteDetailPage> {
   }
 }
 
-class _DetailMetaRow extends StatelessWidget {
-  const _DetailMetaRow({required this.label, required this.value});
+class _TimeSummaryRow extends StatelessWidget {
+  const _TimeSummaryRow({required this.createdAt, required this.updatedAt});
+
+  final String createdAt;
+  final String updatedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 18,
+      runSpacing: 10,
+      children: <Widget>[
+        _TimePill(label: '创建时间', value: createdAt),
+        _TimePill(label: '最近更新', value: updatedAt),
+      ],
+    );
+  }
+}
+
+class _TimePill extends StatelessWidget {
+  const _TimePill({required this.label, required this.value});
 
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        SizedBox(
-          width: 72,
-          child: Text(
-            label,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F2EA),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            '$label：',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: const Color(0xFF76827D),
               fontWeight: FontWeight.w700,
             ),
           ),
-        ),
-        Expanded(
-          child: Text(
+          Text(
             value,
             style: Theme.of(
               context,
             ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF22342F)),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
